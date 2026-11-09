@@ -6,7 +6,7 @@ import type { NewEvent } from '../data/store';
 import {
   IDLE, assignSlot, backRow, benchOf, blockerCandidates, buildAttemptEvent, buildMatchConfig, buildRallyEvent, canStartSet,
   chooseBlocker, choosePlay, chooseZone, conditionRows, initialDraft, liberoReplaced, needsZone, nextEmptySlot, nextSetNeeded,
-  nextSetNo, rotationLabel, toggleLibero, validateSetStart, withOpponentNo, type SetStartDraft, type Step,
+  nextSetNo, rotationLabel, subOutCandidates, toggleLibero, validateSetStart, withOpponentNo, type SetStartDraft, type Step,
 } from './live.logic';
 
 const cfg: MatchConfig = { format: 'bestOf', sets: 3, points: 25, finalSetPoints: 15 };
@@ -196,6 +196,15 @@ describe('セット開始の入力', () => {
 });
 
 describe('交代・表示', () => {
+  it('通常の交代の候補にコート上のリベロは入らない', () => {
+    expect(subOutCandidates([10, 2, 3, 4, 5, 6], [10])).toEqual([2, 3, 4, 5, 6]);
+  });
+  it('一度始めたセットを1つ戻すで取り消すと、同じセットをもう一度始められる（R4）', () => {
+    const evs = [start(1), ...points(1, 'us', 25), start(2)];
+    expect(canStartSet(evs, replay(cfg, evs), cfg, 2)).toBe(false);
+    const undone = evs.slice(0, -1);
+    expect(canStartSet(undone, replay(cfg, undone), cfg, 2)).toBe(true);
+  });
   it('ベンチと後衛', () => {
     expect(benchOf([1, 2, 3, 4, 5, 6, 7, 8, 10], US, [10])).toEqual([7, 8]);
     expect(backRow(US)).toEqual([1, 6, 5]);

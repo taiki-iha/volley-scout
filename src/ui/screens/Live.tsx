@@ -33,8 +33,7 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
   const [step, setStep] = useState<Step>(IDLE);
   const [wantNextSet, setWantNextSet] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
-  // この画面から送った set_start のセット番号。反映待ちの間に同じセットを二重に始めないため（R4）
-  const submitted = useRef(new Set<number>());
+  // R4 の最終確認は、送信の瞬間の最新イベント（watch で届いたもの）に対して行う
   const latest = useRef<{ events: MatchEvent[] | undefined }>({ events });
   latest.current.events = events;
 
@@ -42,11 +41,6 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
   const curOver = state?.current?.over ?? false;
   useEffect(() => { setStep(IDLE); }, [curSet, curOver]);
   useEffect(() => { setWantNextSet(false); }, [curSet]);
-  useEffect(() => {
-    for (const n of [...submitted.current]) {
-      if (events?.some((e) => e.t === 'set_start' && e.set === n)) submitted.current.delete(n);
-    }
-  }, [events]);
 
   if (!matches || !events || !players || !opponents) return <div class="screen"><p class="muted">読み込み中…</p></div>;
   if (!match || !cfg || !state) return <div class="screen"><h1>試合が見つかりません</h1></div>;
@@ -59,7 +53,7 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
 
   const canStart = (n: number) => () => {
     const evs = latest.current.events ?? [];
-    return !submitted.current.has(n) && canStartSet(evs, replay(cfg, evs), cfg, n);
+    return canStartSet(evs, replay(cfg, evs), cfg, n);
   };
 
   // ---- セット開始画面 ----
@@ -67,7 +61,7 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
     return (
       <SetStart key={newSetNo} matchId={id} setNo={newSetNo} events={events} state={state} players={players} team={team}
         canStart={canStart(newSetNo)}
-        onStarted={() => { submitted.current.add(newSetNo); setWantNextSet(false); }}
+        onStarted={() => setWantNextSet(false)}
         onCancel={cur ? () => setWantNextSet(false) : undefined} />
     );
   }

@@ -81,7 +81,7 @@ input:disabled { background: var(--navy-soft); }
 
 /* ---------- 試合作成・セット開始 ---------- */
 .screen.wide { max-width: 1200px; }
-button.small { min-height: 40px; padding: 0 12px; font-size: 16px; }
+button.small { min-height: var(--tap); padding: 0 12px; font-size: 16px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .chip { min-width: 64px; min-height: 56px; padding: 4px 10px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
 .chip b { font-size: 20px; }
@@ -102,7 +102,7 @@ button.small { min-height: 40px; padding: 0 12px; font-size: 16px; }
 .ss-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 16px; }
 
 /* ---------- 試合中の入力（タブレット横向き 1024×768 を想定） ---------- */
-.live { padding: 6px 10px 16px; max-width: 1400px; margin: 0 auto; }
+.live { padding: 4px 10px 4px; max-width: 1400px; margin: 0 auto; }
 .live-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .scoreboard { flex: 1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; background: var(--navy); color: #fff; border-radius: 10px; padding: 4px 14px; }
 .sb-team { display: flex; align-items: center; gap: 10px; font-size: 18px; }
@@ -124,9 +124,9 @@ button.small { min-height: 40px; padding: 0 12px; font-size: 16px; }
 .court-label { position: absolute; top: 2px; font-size: 12px; font-weight: 700; color: #6a4a12; }
 .court-them .court-label { left: 8px; }
 .court-us .court-label { right: 8px; }
-.court-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); gap: 6px; aspect-ratio: 1 / 1.1; margin-top: 12px; }
+.court-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); gap: 4px; aspect-ratio: 1 / 0.9; margin-top: 12px; }
 .net { width: 8px; background: #333; border-radius: 3px; }
-.pl { border-radius: 50%; border: 2px solid #fff; background: #fff; color: var(--text); padding: 0; aspect-ratio: 1 / 1; max-width: 96px; width: 100%; justify-self: center; align-self: center;
+.pl { border-radius: 50%; border: 2px solid #fff; background: #fff; color: var(--text); padding: 0; aspect-ratio: 1 / 1; max-width: 84px; width: 100%; justify-self: center; align-self: center;
   display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); line-height: 1.05; }
 .pl b { font-size: 26px; }
 .pl small { font-size: 12px; color: var(--muted); }
@@ -140,7 +140,7 @@ button.small { min-height: 40px; padding: 0 12px; font-size: 16px; }
 .pp-hint { text-align: center; color: var(--muted); margin: 18px 0; }
 .pp-title { font-size: 16px; margin-bottom: 6px; }
 .pp-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.pp-b { min-height: 50px; padding: 0 6px; font-weight: 700; font-size: 16px; color: #fff; border: none; }
+.pp-b { min-height: var(--tap); padding: 0 6px; font-weight: 700; font-size: 16px; color: #fff; border: none; }
 .pp-b.good { background: #2e86de; }
 .pp-b.bad { background: var(--danger); }
 .pp-b.neutral { background: #7f8c8d; }
@@ -149,7 +149,7 @@ button.small { min-height: 40px; padding: 0 12px; font-size: 16px; }
 .pp-b:active { filter: brightness(0.85); }
 .pp-zones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .zone { min-height: 60px; background: #e9b872; border-color: #c4924a; color: #3d2a08; font-size: 22px; font-weight: 700; }
-.pp-cancel { width: 100%; margin-top: 6px; min-height: 40px; font-size: 14px; }
+.pp-cancel { width: 100%; margin-top: 6px; min-height: var(--tap); font-size: 14px; }
 .pp-noplayer { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
 .pp-noplayer .pp-b { font-size: 14px; }
 .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -160,14 +160,14 @@ button.small { min-height: 40px; padding: 0 12px; font-size: 16px; }
 
 .cond-title { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .cond table { width: 100%; border-collapse: collapse; font-size: 15px; }
-.cond td { padding: 2px 6px; border-bottom: 1px solid #eef0f5; }
+.cond td { padding: 1px 6px; border-bottom: 1px solid #eef0f5; }
 .cond tr.bad td { color: var(--danger); font-weight: 700; }
 .cond tr.off td { opacity: 0.6; }
 .cond .c-no { font-weight: 700; width: 48px; }
 .cond.large table { font-size: 18px; }
 
-.live.readonly .court-grid { aspect-ratio: 1 / 0.95; }
-.live.readonly .pl { max-width: 120px; }
+.live.readonly .court-grid { aspect-ratio: 1 / 0.75; }
+.live.readonly .pl { max-width: 104px; }
 .live.readonly .pl b { font-size: 32px; }
 
 .overlay { position: fixed; inset: 0; background: rgba(20, 28, 48, 0.45); display: flex; align-items: center; justify-content: center; z-index: 20; }
@@ -175,5 +175,10 @@ button.small { min-height: 40px; padding: 0 12px; font-size: 16px; }
 .dialog h3 { font-size: 16px; margin: 12px 0 4px; color: var(--navy); }
 .dialog .tabs { flex-wrap: wrap; }
 /* 選手を選ぶ前後で下のボタン（1つ戻す等）の位置が動かないよう高さを固定 */
-.play-panel { min-height: 430px; display: flex; flex-direction: column; }
+.play-panel { min-height: 400px; display: flex; flex-direction: column; }
 .play-panel .pp-noplayer { margin-top: auto; }
+/* 1024×768（お試しモードのバナーあり）でページがスクロールしないよう、調子リストは内側でスクロール */
+.cond table { display: block; max-height: 150px; overflow-y: auto; }
+.cond tbody { display: table; width: 100%; }
+.live .courts { margin: 0; }
+.live-left, .live-right { gap: 6px; }

@@ -3,7 +3,7 @@ import type { SetState } from '../../core/replay';
 import type { MatchEvent, OpponentTeam, Side } from '../../core/types';
 import type { NewEvent } from '../../data/store';
 import { useStore } from '../../data/StoreContext';
-import { SIDE_LABEL, backRow, benchOf, buildLiberoEvent, buildSubEvent, liberoReplaced, withOpponentNo } from '../live.logic';
+import { SIDE_LABEL, backRow, subOutCandidates, benchOf, buildLiberoEvent, buildSubEvent, liberoReplaced, withOpponentNo } from '../live.logic';
 import { report } from '../notify';
 import { parseJerseyNo } from '../validate';
 
@@ -45,7 +45,7 @@ export function SubDialog({ matchId, cur, events, usRoster, team, onClose }: Pro
         <p class="muted">交代 {cur.subsUsed[side]}/6 回（7回目以降は警告のみ）</p>
         <h3>① 下がる選手（コート）</h3>
         <div class="chips">
-          {lineup.map((no) => (
+          {subOutCandidates(lineup, cur.liberos[side]).map((no) => (
             <button key={no} class={`chip${out === no ? ' in' : ''}`} onClick={() => setOut(no)}><b>{no}</b></button>
           ))}
         </div>

@@ -258,6 +258,11 @@ export function buildTimeoutEvent(set: number, side: Side): NewEvent {
   return { t: 'timeout', set, side };
 }
 
+/** 通常の交代で下げられる選手 = コート上のリベロ以外（リベロの出入りはリベロ入替で行う） */
+export function subOutCandidates(lineup: Lineup, liberos: number[]): number[] {
+  return lineup.filter((no) => !liberos.includes(no));
+}
+
 /** 後衛（ポジション 1,6,5）の選手。リベロと入れ替えられる候補 */
 export function backRow(lineup: Lineup): number[] {
   return [lineup[0], lineup[5], lineup[4]];
