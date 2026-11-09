@@ -3,7 +3,9 @@ import type { Store } from '../data/store';
 import { StoreProvider } from '../data/StoreContext';
 import { Home } from './screens/Home';
 import { Join } from './screens/Join';
+import { EventEdit } from './screens/EventEdit';
 import { Live } from './screens/Live';
+import { ReceptionScreen } from './screens/Reception';
 import { MatchSetup } from './screens/MatchSetup';
 import { Opponents } from './screens/Opponents';
 import { Roster } from './screens/Roster';
@@ -55,6 +57,8 @@ export function App({ store, teamId }: { store: Store | null; teamId: string | n
     case 'matchNew': screen = <MatchSetup />; break;
     case 'matchLive': screen = <Live key={`live:${route.id}`} id={route.id} readonly={false} />; break;
     case 'matchView': screen = <Live key={`view:${route.id}`} id={route.id} readonly />; break;
+    case 'matchReception': screen = <ReceptionScreen key={`rc:${route.id}`} id={route.id} />; break;
+    case 'matchEdit': screen = <EventEdit key={`ed:${route.id}`} id={route.id} />; break;
     default: screen = <Placeholder />;
   }
 

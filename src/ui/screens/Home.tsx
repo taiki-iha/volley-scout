@@ -27,6 +27,8 @@ export function Home() {
               <span class="grow">{m.date}　{m.kind === 'official' ? '公式戦' : '練習試合'}　vs {oppName(m.opponentId)}{m.tournament ? `（${m.tournament}）` : ''}</span>
               <button onClick={() => navigate(`/match/${encodeURIComponent(m.id)}/live`)}>記録</button>
               <button onClick={() => navigate(`/match/${encodeURIComponent(m.id)}/view`)}>見る</button>
+              <button onClick={() => navigate(`/match/${encodeURIComponent(m.id)}/reception`)}>レシーブ</button>
+              <button onClick={() => navigate(`/match/${encodeURIComponent(m.id)}/edit`)}>修正</button>
             </li>
           ))}
         </ul>
