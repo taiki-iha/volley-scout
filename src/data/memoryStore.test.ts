@@ -106,4 +106,30 @@ describe('memoryStore', () => {
     await s.deletePlayer(1);
     expect(n).toBe(2);
   });
+
+  it('attempt の zone/player を修正でき、play キーは reject', async () => {
+    const s = createMemoryStore();
+    const id = await s.createMatch(matchInput);
+    let got: MatchEvent[] = [];
+    s.watchEvents(id, (e) => { got = e; });
+    await s.appendEvent(id, { t: 'attempt', set: 1, side: 'us', player: 7, zone: 4 });
+    await s.updateEvent(id, '0000000001', { zone: 2, player: 9 });
+    const e = got[0];
+    expect(e.t === 'attempt' && e.zone).toBe(2);
+    expect(e.t === 'attempt' && e.player).toBe(9);
+    await s.updateEvent(id, '0000000001', { zone: undefined });
+    expect(got[0].t === 'attempt' && (got[0] as { zone: number }).zone).toBe(2);
+    await expect(s.updateEvent(id, '0000000001', { play: 'spike_kill' } as never)).rejects.toThrow();
+  });
+
+  it('setItem が throw しても watcher には通知され、promise は reject', async () => {
+    const st = fakeStorage();
+    const s = createMemoryStore(st);
+    const id = await s.createMatch(matchInput);
+    let got: MatchEvent[] = [];
+    s.watchEvents(id, (e) => { got = e; });
+    st.setItem = () => { throw new Error('quota'); };
+    await expect(s.appendEvent(id, rally('spike_kill'))).rejects.toThrow('quota');
+    expect(got).toHaveLength(1);
+  });
 });

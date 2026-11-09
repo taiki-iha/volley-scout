@@ -6,6 +6,10 @@ export type Unsub = () => void;
 export interface Settings { thresholds: ConditionThresholds; }
 export type NewEvent = DistributiveOmit<MatchEvent, 'id' | 'seq' | 'at'>;
 export type RallyEvent = Extract<MatchEvent, { t: 'rally' }>;
+export type AttemptEvent = Extract<MatchEvent, { t: 'attempt' }>;
+export type RallyPatch = Partial<Pick<RallyEvent, 'player' | 'play' | 'zone' | 'blocker'>>;
+export type AttemptPatch = Partial<Pick<AttemptEvent, 'player' | 'zone'>>;
+export type EventPatch = RallyPatch | AttemptPatch;
 
 export interface Store {
   readonly mode: 'local' | 'cloud';
@@ -16,7 +20,7 @@ export interface Store {
   watchEvents(matchId: string, cb: (e: MatchEvent[]) => void): Unsub; // seq 昇順で渡す
   appendEvent(matchId: string, e: NewEvent): Promise<void>; // seq = 現在の最大 seq + 1、id = seq を10桁ゼロ埋め
   undoLast(matchId: string): Promise<void>; // 最大 seq のイベントを削除
-  updateEvent(matchId: string, id: string, patch: Partial<Pick<RallyEvent, 'player' | 'play' | 'zone' | 'blocker'>>): Promise<void>;
+  updateEvent(matchId: string, id: string, patch: EventPatch): Promise<void>;
   watchReceptions(matchId: string, cb: (r: Reception[]) => void): Unsub; saveReception(matchId: string, r: Reception): Promise<void>;
   watchSettings(cb: (s: Settings) => void): Unsub; saveSettings(s: Settings): Promise<void>;
 }

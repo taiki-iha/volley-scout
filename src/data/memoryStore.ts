@@ -41,8 +41,13 @@ export function createMemoryStore(storage?: Storage): MemoryStore {
 
   const notify = () => watchers.forEach((f) => f());
   const commit = () => {
-    if (storage) storage.setItem(KEY, JSON.stringify(state));
+    let err: unknown;
+    let failed = false;
+    if (storage) {
+      try { storage.setItem(KEY, JSON.stringify(state)); } catch (e) { failed = true; err = e; }
+    }
     notify();
+    if (failed) throw err;
   };
   const reload = () => { load(); notify(); };
 
@@ -107,11 +112,21 @@ export function createMemoryStore(storage?: Storage): MemoryStore {
     async updateEvent(matchId, id, patch) {
       const list = evs(matchId);
       const cur = list.find((x) => x.id === id);
-      if (!cur || cur.t !== 'rally') throw new Error('対象のイベントが見つかりません');
-      if (patch.play !== undefined && isScoring(patch.play) !== isScoring(cur.play)) {
-        throw new Error('点数が変わる修正はできません');
+      if (!cur) throw new Error('対象のイベントが見つかりません');
+      const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Record<string, unknown>;
+      let next: MatchEvent;
+      if (cur.t === 'rally') {
+        const allowed = ['player', 'play', 'zone', 'blocker'];
+        if (Object.keys(clean).some((k) => !allowed.includes(k))) throw new Error('この項目は修正できません');
+        const play = clean.play as PlayKind | undefined;
+        if (play !== undefined && isScoring(play) !== isScoring(cur.play)) throw new Error('点数が変わる修正はできません');
+        next = { ...cur, ...clean, pointTo: cur.pointTo } as MatchEvent;
+      } else if (cur.t === 'attempt') {
+        if (Object.keys(clean).some((k) => k !== 'player' && k !== 'zone')) throw new Error('この項目は修正できません');
+        next = { ...cur, ...clean } as MatchEvent;
+      } else {
+        throw new Error('このイベントは修正できません');
       }
-      const next: MatchEvent = { ...cur, ...patch, pointTo: cur.pointTo };
       state = { ...state, events: { ...state.events, [matchId]: list.map((x) => (x.id === id ? next : x)) } };
       commit();
     },
