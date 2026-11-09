@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import type { OpponentTeam, Position } from '../../core/types';
 import { useStore, useWatch } from '../../data/StoreContext';
 import { report } from '../notify';
@@ -15,11 +15,13 @@ export function Opponents() {
   const [teamName, setTeamName] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, run] = useBusy();
+  // 追加フォーム1回分のID。二重クリックでも同じドキュメントへの書き込みになる（冪等）。名前を打ち直したら作り直す。
+  const pendingId = useRef<string | null>(null);
 
   async function addTeam() {
     const name = teamName.trim();
     if (!name) return;
-    const t: OpponentTeam = { id: newId(), name, players: [] };
+    const t: OpponentTeam = { id: (pendingId.current ??= newId()), name, players: [] };
     await run(async () => { if (await report(store.saveOpponent(t))) { setTeamName(''); setSelectedId(t.id); } });
   }
 
@@ -31,7 +33,7 @@ export function Opponents() {
         <h2>相手チームを追加</h2>
         <div class="form-row">
           <label class="field grow">チーム名
-            <input value={teamName} onInput={(e) => setTeamName(e.currentTarget.value)} />
+            <input value={teamName} onInput={(e) => { pendingId.current = null; setTeamName(e.currentTarget.value); }} />
           </label>
           <button class="primary" disabled={busy} onClick={addTeam}>追加</button>
         </div>
