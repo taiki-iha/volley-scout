@@ -178,7 +178,7 @@ button.small { min-height: var(--tap); padding: 0 12px; font-size: 16px; }
 .play-panel { min-height: 400px; display: flex; flex-direction: column; }
 .play-panel .pp-noplayer { margin-top: auto; }
 /* 1024×768（お試しモードのバナーあり）でページがスクロールしないよう、調子リストは内側でスクロール */
-.cond table { display: block; max-height: 150px; overflow-y: auto; }
-.cond tbody { display: table; width: 100%; }
+.live:not(.readonly) .cond table { display: block; max-height: 150px; overflow-y: auto; }
+.live:not(.readonly) .cond tbody { display: table; width: 100%; }
 .live .courts { margin: 0; }
 .live-left, .live-right { gap: 6px; }
