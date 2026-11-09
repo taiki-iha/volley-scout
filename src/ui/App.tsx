@@ -3,6 +3,8 @@ import type { Store } from '../data/store';
 import { StoreProvider } from '../data/StoreContext';
 import { Home } from './screens/Home';
 import { Join } from './screens/Join';
+import { Live } from './screens/Live';
+import { MatchSetup } from './screens/MatchSetup';
 import { Opponents } from './screens/Opponents';
 import { Roster } from './screens/Roster';
 import { Settings } from './screens/Settings';
@@ -50,6 +52,9 @@ export function App({ store, teamId }: { store: Store | null; teamId: string | n
     case 'roster': screen = <Roster />; break;
     case 'opponents': screen = <Opponents />; break;
     case 'settings': screen = <Settings teamId={teamId} />; break;
+    case 'matchNew': screen = <MatchSetup />; break;
+    case 'matchLive': screen = <Live key={`live:${route.id}`} id={route.id} readonly={false} />; break;
+    case 'matchView': screen = <Live key={`view:${route.id}`} id={route.id} readonly />; break;
     default: screen = <Placeholder />;
   }
 
