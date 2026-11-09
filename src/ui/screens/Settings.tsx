@@ -31,8 +31,7 @@ export function Settings({ teamId }: { teamId: string | null }) {
     const r = parseThresholds({ minSpikes, maxKillRatePct: pct, maxServeErrorsPerSet: serveErr });
     if (!r.ok) { setError(r.error); setSaved(false); return; }
     setError('');
-    await report(store.saveSettings({ thresholds: r.value }));
-    setSaved(true);
+    setSaved(await report(store.saveSettings({ thresholds: r.value })));
   }
 
   return (

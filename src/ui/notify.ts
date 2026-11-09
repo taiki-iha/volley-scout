@@ -12,6 +12,6 @@ export function onMessage(f: Listener): () => void {
   return () => { listeners.delete(f); };
 }
 /** ストアの書き込み Promise を渡す。失敗したらバナーに出す。 */
-export function report<T>(p: Promise<T>): Promise<T | undefined> {
-  return p.catch((e) => { showError(e); return undefined; });
+export function report(p: Promise<unknown>): Promise<boolean> {
+  return p.then(() => true, (e) => { showError(e); return false; });
 }

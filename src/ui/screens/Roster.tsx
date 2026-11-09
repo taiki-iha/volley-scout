@@ -18,8 +18,7 @@ export function Roster() {
   async function save() {
     const r = validatePlayer({ no, name, position }, players ?? [], editingNo);
     if (!r.ok) { setError(r.error); return; }
-    reset();
-    await report(store.savePlayer(r.value));
+    if (await report(store.savePlayer(r.value))) reset();
   }
 
   const sorted = [...(players ?? [])].sort((a, b) => a.no - b.no);

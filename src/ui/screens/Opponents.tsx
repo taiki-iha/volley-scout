@@ -18,9 +18,7 @@ export function Opponents() {
     const name = teamName.trim();
     if (!name) return;
     const t: OpponentTeam = { id: newId(), name, players: [] };
-    setTeamName('');
-    setSelectedId(t.id);
-    await report(store.saveOpponent(t));
+    if (await report(store.saveOpponent(t))) { setTeamName(''); setSelectedId(t.id); }
   }
 
   const selected = teams?.find((t) => t.id === selectedId) ?? null;
@@ -69,8 +67,7 @@ function TeamEditor({ team }: { team: OpponentTeam }) {
     const r = validateOpponentPlayer({ no, name, position }, team.players, editingNo);
     if (!r.ok) { setError(r.error); return; }
     const players = [...team.players.filter((p) => p.no !== editingNo), r.value].sort((a, b) => a.no - b.no);
-    reset();
-    await report(store.saveOpponent({ ...team, players }));
+    if (await report(store.saveOpponent({ ...team, players }))) reset();
   }
 
   const sorted = [...team.players].sort((a, b) => a.no - b.no);

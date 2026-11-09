@@ -75,6 +75,6 @@ input:disabled { background: var(--navy-soft); }
 .banner { display: flex; align-items: center; gap: 10px; padding: 8px 16px; font-size: 15px; }
 .local-banner { background: var(--navy); color: #fff; justify-content: center; }
 .error-banner { background: #fdecea; color: var(--danger); border-bottom: 2px solid var(--danger); position: sticky; top: 0; z-index: 10; }
-.error-banner button { min-height: 40px; }
+.error-banner button { min-height: var(--tap); }
 
 .topnav { padding: 8px 20px 0; max-width: 960px; margin: 0 auto; }
