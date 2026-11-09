@@ -1,5 +1,6 @@
 import { DEFAULT_THRESHOLDS } from '../core/condition';
-import type { Match, MatchEvent, OpponentTeam, Player, PlayKind, Reception } from '../core/types';
+import type { Match, MatchEvent, OpponentTeam, Player, Reception } from '../core/types';
+import { applyEventPatch, buildNextEvent, lastEvent } from './eventPatch';
 import type { NewEvent, Settings, Store, Unsub } from './store';
 
 const KEY = 'volley-scout:v1';
@@ -13,9 +14,6 @@ interface State {
   settings: Settings | null;
 }
 const emptyState = (): State => ({ players: [], opponents: [], matches: [], events: {}, receptions: {}, settings: null });
-
-const SCORING: PlayKind[] = ['spike_kill', 'serve_ace', 'block_point', 'other_point'];
-const isScoring = (p: PlayKind) => SCORING.includes(p);
 
 export type MemoryStore = Store & { _reloadFromStorage(): void };
 
@@ -97,36 +95,22 @@ export function createMemoryStore(storage?: Storage): MemoryStore {
     watchEvents: (matchId, cb) => watch(() => evs(matchId), cb),
     async appendEvent(matchId, e: NewEvent) {
       const list = evs(matchId);
-      const seq = list.reduce((m, x) => Math.max(m, x.seq), 0) + 1;
-      const ev = { ...e, seq, id: String(seq).padStart(10, '0'), at: Date.now() } as MatchEvent;
+      const ev = buildNextEvent(list, e, Date.now());
       state = { ...state, events: { ...state.events, [matchId]: [...list, ev] } };
       commit();
     },
     async undoLast(matchId) {
       const list = evs(matchId);
-      if (!list.length) return;
-      const max = list.reduce((m, x) => Math.max(m, x.seq), 0);
-      state = { ...state, events: { ...state.events, [matchId]: list.filter((x) => x.seq !== max) } };
+      const last = lastEvent(list);
+      if (!last) return;
+      state = { ...state, events: { ...state.events, [matchId]: list.filter((x) => x.seq !== last.seq) } };
       commit();
     },
     async updateEvent(matchId, id, patch) {
       const list = evs(matchId);
       const cur = list.find((x) => x.id === id);
       if (!cur) throw new Error('対象のイベントが見つかりません');
-      const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Record<string, unknown>;
-      let next: MatchEvent;
-      if (cur.t === 'rally') {
-        const allowed = ['player', 'play', 'zone', 'blocker'];
-        if (Object.keys(clean).some((k) => !allowed.includes(k))) throw new Error('この項目は修正できません');
-        const play = clean.play as PlayKind | undefined;
-        if (play !== undefined && isScoring(play) !== isScoring(cur.play)) throw new Error('点数が変わる修正はできません');
-        next = { ...cur, ...clean, pointTo: cur.pointTo } as MatchEvent;
-      } else if (cur.t === 'attempt') {
-        if (Object.keys(clean).some((k) => k !== 'player' && k !== 'zone')) throw new Error('この項目は修正できません');
-        next = { ...cur, ...clean } as MatchEvent;
-      } else {
-        throw new Error('このイベントは修正できません');
-      }
+      const next = applyEventPatch(cur, patch);
       state = { ...state, events: { ...state.events, [matchId]: list.map((x) => (x.id === id ? next : x)) } };
       commit();
     },

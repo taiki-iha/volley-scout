@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -32,5 +33,9 @@ export default defineConfig(({ command, isPreview }) => ({
       workbox: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'] },
     }),
   ],
-  test: { environment: 'node' },
+  // tests/rules はエミュレーターが必要なので通常の npm test から外す。
+  // npm run test:rules（firebase emulators:exec）は FIRESTORE_EMULATOR_HOST を設定するので、そのときだけ含める。
+  test: process.env.FIRESTORE_EMULATOR_HOST
+    ? { environment: 'node', testTimeout: 30000, hookTimeout: 30000 }
+    : { environment: 'node', exclude: [...configDefaults.exclude, 'tests/rules/**'] },
 }));

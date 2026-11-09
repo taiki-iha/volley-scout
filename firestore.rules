@@ -1,0 +1,120 @@
+rules_version = '2';
+
+// バレー記録 セキュリティルール
+// - 認証は匿名認証。チームのデータはメンバー（正しいコードで参加した端末）だけが読み書きできる。
+// - メンバー判定: teams/{t}/members/{uid} があり、その codeVersion が teams/{t}.codeVersion と一致すること。
+//   監督がコードを変更すると codeVersion が上がり、旧コードで参加した端末は読めなくなる。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function teamPath(t) {
+      return /databases/$(database)/documents/teams/$(t);
+    }
+    function myMemberPath(t) {
+      return /databases/$(database)/documents/teams/$(t)/members/$(request.auth.uid);
+    }
+    function codePath(code) {
+      return /databases/$(database)/documents/joinCodes/$(code);
+    }
+    function isMember(t) {
+      return signedIn()
+        && exists(myMemberPath(t))
+        && get(myMemberPath(t)).data.codeVersion == get(teamPath(t)).data.codeVersion;
+    }
+    function isAdmin(t) {
+      return isMember(t) && get(myMemberPath(t)).data.role == 'admin';
+    }
+    function validRole(r) {
+      return r == 'admin' || r == 'member';
+    }
+
+    // 参加コード。ドキュメントID がコードそのもの。
+    // get（コードを知っている人が引く）だけ許可し、list（一覧で盗み見る）は不可。
+    match /joinCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      // 作成できるのは「同じ書き込みで新しいチームを作るとき」か「そのチームの監督がコードを変更するとき」だけ。
+      // 既存チームを指すコードを第三者が作って監督になりすますことを防ぐ。
+      // create は既存ドキュメントがあると評価されない（= 上書き不可）。
+      allow create: if signedIn()
+        && code.size() >= 6
+        && request.resource.data.keys().hasOnly(['teamId', 'role', 'codeVersion'])
+        && request.resource.data.teamId is string
+        && request.resource.data.teamId.matches('^[A-Za-z0-9]+$')
+        && validRole(request.resource.data.role)
+        && existsAfter(teamPath(request.resource.data.teamId))
+        && request.resource.data.codeVersion == getAfter(teamPath(request.resource.data.teamId)).data.codeVersion
+        && (!exists(teamPath(request.resource.data.teamId)) || isAdmin(request.resource.data.teamId));
+      allow update, delete: if false;
+    }
+
+    match /teams/{t} {
+      allow read: if isMember(t);
+      // チーム作成は認証済みなら誰でも可（作成者は同じバッチで監督コードの joinCodes と members を作る）
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'codeVersion'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 50
+        && request.resource.data.codeVersion == 1;
+      // コード変更（codeVersion を 1 上げる）とチーム名変更は監督のみ
+      allow update: if isAdmin(t)
+        && request.resource.data.keys().hasOnly(['name', 'codeVersion'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 50
+        && (request.resource.data.codeVersion == resource.data.codeVersion
+            || request.resource.data.codeVersion == resource.data.codeVersion + 1);
+      allow delete: if false;
+
+      // メンバー。code フィールドで joinCodes と照合する。
+      // 他人の members には監督コードが入っているため、読めるのは自分のドキュメントだけ。
+      match /members/{uid} {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow list: if false;
+        allow create, update: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['role', 'codeVersion', 'code'])
+          && request.resource.data.code is string
+          && request.resource.data.code.size() >= 6
+          && request.resource.data.code.matches('^[^/]+$')
+          && existsAfter(codePath(request.resource.data.code))
+          && getAfter(codePath(request.resource.data.code)).data.teamId == t
+          && getAfter(codePath(request.resource.data.code)).data.role == request.resource.data.role
+          && getAfter(codePath(request.resource.data.code)).data.codeVersion == request.resource.data.codeVersion
+          && request.resource.data.codeVersion == getAfter(teamPath(t)).data.codeVersion;
+        allow delete: if signedIn() && (request.auth.uid == uid || isAdmin(t));
+      }
+
+      match /players/{no} {
+        allow read, create, update: if isMember(t);
+        allow delete: if isAdmin(t);
+      }
+      match /opponents/{id} {
+        allow read, create, update: if isMember(t);
+        allow delete: if isAdmin(t);
+      }
+      match /settings/{id} {
+        allow read, create, update: if isMember(t);
+        allow delete: if false;
+      }
+      match /matches/{m} {
+        allow read, create, update: if isMember(t);
+        allow delete: if isAdmin(t);
+
+        // 1つ戻す（undoLast）はメンバー全員ができる
+        match /events/{e} {
+          allow read, create, update, delete: if isMember(t);
+        }
+        // 削除は試合削除（監督）の後始末のときだけ
+        match /receptions/{r} {
+          allow read, create, update: if isMember(t);
+          allow delete: if isAdmin(t);
+        }
+      }
+    }
+  }
+}
