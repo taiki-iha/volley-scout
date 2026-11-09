@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import type { OpponentTeam, Position } from '../../core/types';
 import { useStore, useWatch } from '../../data/StoreContext';
 import { report } from '../notify';
+import { useBusy } from '../useBusy';
 import { POSITIONS, POSITION_LABEL, validateOpponentPlayer } from '../validate';
 
 function newId(): string {
@@ -13,12 +14,13 @@ export function Opponents() {
   const teams = useWatch<OpponentTeam[]>((cb) => store.watchOpponents(cb), [store]);
   const [teamName, setTeamName] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, run] = useBusy();
 
   async function addTeam() {
     const name = teamName.trim();
     if (!name) return;
     const t: OpponentTeam = { id: newId(), name, players: [] };
-    if (await report(store.saveOpponent(t))) { setTeamName(''); setSelectedId(t.id); }
+    await run(async () => { if (await report(store.saveOpponent(t))) { setTeamName(''); setSelectedId(t.id); } });
   }
 
   const selected = teams?.find((t) => t.id === selectedId) ?? null;
@@ -31,7 +33,7 @@ export function Opponents() {
           <label class="field grow">チーム名
             <input value={teamName} onInput={(e) => setTeamName(e.currentTarget.value)} />
           </label>
-          <button class="primary" onClick={addTeam}>追加</button>
+          <button class="primary" disabled={busy} onClick={addTeam}>追加</button>
         </div>
       </section>
       <h2>相手チーム一覧</h2>
@@ -42,7 +44,7 @@ export function Opponents() {
               <span class="grow">{t.name}（{t.players.length}人）</span>
               <button onClick={() => setSelectedId(t.id === selectedId ? null : t.id)}>{t.id === selectedId ? '閉じる' : '選手を編集'}</button>
               {store.role() === 'admin' && (
-                <button class="danger" onClick={() => { if (t.id === selectedId) setSelectedId(null); report(store.deleteOpponent(t.id)); }}>削除</button>
+                <button class="danger" onClick={async () => { if (await report(store.deleteOpponent(t.id)) && t.id === selectedId) setSelectedId(null); }}>削除</button>
               )}
             </li>
           ))}
@@ -60,6 +62,7 @@ function TeamEditor({ team }: { team: OpponentTeam }) {
   const [name, setName] = useState('');
   const [position, setPosition] = useState<Position | ''>('');
   const [error, setError] = useState('');
+  const [busy, run] = useBusy();
 
   const reset = () => { setEditingNo(null); setNo(''); setName(''); setPosition(''); setError(''); };
 
@@ -67,7 +70,7 @@ function TeamEditor({ team }: { team: OpponentTeam }) {
     const r = validateOpponentPlayer({ no, name, position }, team.players, editingNo);
     if (!r.ok) { setError(r.error); return; }
     const players = [...team.players.filter((p) => p.no !== editingNo), r.value].sort((a, b) => a.no - b.no);
-    if (await report(store.saveOpponent({ ...team, players }))) reset();
+    await run(async () => { if (await report(store.saveOpponent({ ...team, players }))) reset(); });
   }
 
   const sorted = [...team.players].sort((a, b) => a.no - b.no);
@@ -90,7 +93,7 @@ function TeamEditor({ team }: { team: OpponentTeam }) {
       </div>
       {error && <p class="error" role="alert">{error}</p>}
       <div class="row">
-        <button class="primary" onClick={save}>{editingNo === null ? '選手を追加' : '保存'}</button>
+        <button class="primary" disabled={busy} onClick={save}>{editingNo === null ? '選手を追加' : '保存'}</button>
         {editingNo !== null && <button onClick={reset}>キャンセル</button>}
       </div>
       {sorted.length === 0 ? <p class="muted">選手が未登録です</p> : (

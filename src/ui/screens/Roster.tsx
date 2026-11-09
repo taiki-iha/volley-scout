@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import type { Player, Position } from '../../core/types';
 import { useStore, useWatch } from '../../data/StoreContext';
 import { report } from '../notify';
+import { useBusy } from '../useBusy';
 import { POSITIONS, POSITION_LABEL, validatePlayer } from '../validate';
 
 export function Roster() {
@@ -12,13 +13,14 @@ export function Roster() {
   const [name, setName] = useState('');
   const [position, setPosition] = useState<Position>('OH');
   const [error, setError] = useState('');
+  const [busy, run] = useBusy();
 
   const reset = () => { setEditingNo(null); setNo(''); setName(''); setPosition('OH'); setError(''); };
 
   async function save() {
     const r = validatePlayer({ no, name, position }, players ?? [], editingNo);
     if (!r.ok) { setError(r.error); return; }
-    if (await report(store.savePlayer(r.value))) reset();
+    await run(async () => { if (await report(store.savePlayer(r.value))) reset(); });
   }
 
   const sorted = [...(players ?? [])].sort((a, b) => a.no - b.no);
@@ -42,7 +44,7 @@ export function Roster() {
         </div>
         {error && <p class="error" role="alert">{error}</p>}
         <div class="row">
-          <button class="primary" onClick={save}>{editingNo === null ? '追加' : '保存'}</button>
+          <button class="primary" disabled={busy} onClick={save}>{editingNo === null ? '追加' : '保存'}</button>
           {editingNo !== null && <button onClick={reset}>キャンセル</button>}
         </div>
       </section>
