@@ -1,3 +1,66 @@
-export function App() {
-  return <h1>バレー記録</h1>;
+import { useEffect, useState } from 'preact/hooks';
+import type { Store } from '../data/store';
+import { StoreProvider } from '../data/StoreContext';
+import { Home } from './screens/Home';
+import { Join } from './screens/Join';
+import { Opponents } from './screens/Opponents';
+import { Roster } from './screens/Roster';
+import { Settings } from './screens/Settings';
+import { clearError, onMessage } from './notify';
+import { navigate, useRoute } from './router';
+
+function Banner() {
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => onMessage(setMsg), []);
+  if (!msg) return null;
+  return (
+    <div class="banner error-banner" role="alert">
+      <span class="grow">{msg}</span>
+      <button onClick={clearError}>閉じる</button>
+    </div>
+  );
+}
+
+function Placeholder() {
+  return (
+    <div class="screen">
+      <h1>準備中</h1>
+      <p class="muted">この画面はまだ作られていません。</p>
+    </div>
+  );
+}
+
+export function App({ store, teamId }: { store: Store | null; teamId: string | null }) {
+  const route = useRoute();
+
+  // クラウド設定済みで未参加（store なし）のときは参加画面のみ
+  if (!store) {
+    return (
+      <>
+        <Banner />
+        <Join />
+      </>
+    );
+  }
+
+  let screen;
+  switch (route.name) {
+    case 'home': screen = <Home />; break;
+    case 'join': screen = <Join />; break;
+    case 'roster': screen = <Roster />; break;
+    case 'opponents': screen = <Opponents />; break;
+    case 'settings': screen = <Settings teamId={teamId} />; break;
+    default: screen = <Placeholder />;
+  }
+
+  return (
+    <StoreProvider store={store}>
+      {store.mode === 'local' && <div class="banner local-banner">お試しモード（この端末だけに保存）</div>}
+      <Banner />
+      {route.name !== 'home' && (
+        <nav class="topnav"><button onClick={() => navigate('/')}>← ホーム</button></nav>
+      )}
+      {screen}
+    </StoreProvider>
+  );
 }
