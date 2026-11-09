@@ -50,6 +50,25 @@ describe('firestore.rules', () => {
     await assertFails(getDoc(doc(anon, 'joinCodes', MEMBER)));
   });
 
+  it('非メンバー・未ログインは書き込めない', async () => {
+    const eve = dbOf('eve');
+    await assertFails(setDoc(doc(eve, 'teams', T, 'players', '7'), { no: 7, name: '侵入', position: 'S' }));
+    await assertFails(setDoc(doc(eve, 'teams', T, 'matches', 'm2'), { id: 'm2', createdAt: 2 }));
+    await assertFails(setDoc(doc(eve, 'teams', T, 'matches', 'm1', 'events', '0000000002-x'), { id: '0000000002-x', seq: 2 }));
+    await assertFails(deleteDoc(doc(eve, 'teams', T, 'matches', 'm1', 'events', '0000000001')));
+    const anon = env.unauthenticatedContext().firestore() as unknown as Firestore;
+    await assertFails(setDoc(doc(anon, 'teams', T, 'players', '7'), { no: 7, name: '侵入', position: 'S' }));
+    await assertFails(setDoc(doc(anon, 'teams', T, 'matches', 'm1', 'events', '0000000002-x'), { id: '0000000002-x', seq: 2 }));
+    await assertFails(setDoc(doc(anon, 'teams', 'team9'), { name: '匿名', codeVersion: 1 }));
+  });
+
+  it('member が選手用コードのまま自分の members を role:admin に書き換えることはできない', async () => {
+    await join('alice', MEMBER, 'member');
+    await assertFails(setDoc(doc(dbOf('alice'), 'teams', T, 'members', 'alice'), { role: 'admin', codeVersion: 1, code: MEMBER }));
+    await assertFails(updateDoc(doc(dbOf('alice'), 'teams', T, 'members', 'alice'), { role: 'admin' }));
+    await assertFails(deleteDoc(doc(dbOf('alice'), 'teams', T, 'matches', 'm1')));
+  });
+
   it('正しい member コードで参加すると読み書きできる', async () => {
     await assertSucceeds(join('alice', MEMBER, 'member'));
     const db = dbOf('alice');
@@ -90,6 +109,10 @@ describe('firestore.rules', () => {
     await assertSucceeds(b.commit());
 
     await assertFails(getDoc(doc(dbOf('alice'), 'teams', T, 'players', '4')));
+    // 旧メンバーは書き込みもできない
+    await assertFails(setDoc(doc(dbOf('alice'), 'teams', T, 'players', '7'), { no: 7, name: '旧', position: 'S' }));
+    await assertFails(setDoc(doc(dbOf('alice'), 'teams', T, 'matches', 'm1', 'events', '0000000002-x'), { id: '0000000002-x', seq: 2 }));
+    await assertFails(deleteDoc(doc(dbOf('alice'), 'teams', T, 'matches', 'm1', 'events', '0000000001')));
     await assertFails(join('alice', MEMBER, 'member', 1));
     await assertSucceeds(getDoc(doc(dbOf('boss'), 'teams', T, 'players', '4')));
     await assertSucceeds(join('alice', 'member02', 'member', 2));
@@ -107,6 +130,13 @@ describe('firestore.rules', () => {
     await assertFails(setDoc(doc(dbOf('eve'), 'joinCodes', 'evil0001'), { teamId: T, role: 'admin', codeVersion: 1 }));
     await join('alice', MEMBER, 'member');
     await assertFails(setDoc(doc(dbOf('alice'), 'joinCodes', 'evil0002'), { teamId: T, role: 'admin', codeVersion: 1 }));
+    // 新しいチームを作るバッチに紛れ込ませて、既存チームを指すコードを作ることもできない
+    const db = dbOf('eve');
+    const b = writeBatch(db);
+    b.set(doc(db, 'teams', 'eveteam'), { name: '偽チーム', codeVersion: 1 });
+    b.set(doc(db, 'joinCodes', 'evil0003'), { teamId: T, role: 'admin', codeVersion: 1 });
+    await assertFails(b.commit());
+    await assertFails(join('eve', 'evil0003', 'admin'));
   });
 
   it('他人の members ドキュメント（監督コード入り）は読めない', async () => {

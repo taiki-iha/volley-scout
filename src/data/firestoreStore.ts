@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { DEFAULT_THRESHOLDS } from '../core/condition';
 import type { Match, MatchEvent, OpponentTeam, Player, Reception } from '../core/types';
-import { applyEventPatch, buildNextEvent, lastEvent } from './eventPatch';
+import { applyEventPatch, buildNextEvent, cloudEventId, lastEvent, randomSuffix, sortEvents } from './eventPatch';
 import type { Settings, Store, Unsub } from './store';
 
 const dbs = new WeakMap<FirebaseApp, Firestore>();
@@ -42,7 +42,9 @@ async function readDocs(q: Query): Promise<DocumentData[]> {
  * サーバー側で拒否された（権限など）エラーは onError に渡す。UI は await しても止まらない。
  *
  * appendEvent の seq は、この端末が受け取り済みの最大 seq + 1（watchEvents の最新スナップショットと
- * この端末で発行済みの書き込みから計算）。別端末との同時入力は後勝ちで許容する（spec どおり）。
+ * この端末で発行済みの書き込みから計算）。キャッシュが古い・別端末と同時入力などで seq が重なることはあるが、
+ * イベント id は「seq 10桁-ランダム8文字」なので既存のイベントを上書きして消すことはない。
+ * 同じ seq のイベントは id 順に並べる（どの端末でも同じ順）。
  */
 export function createFirestoreStore(
   db: Firestore,
@@ -66,13 +68,20 @@ export function createFirestoreStore(
   async function currentEvents(matchId: string): Promise<MatchEvent[]> {
     const cached = localEvents.get(matchId);
     if (cached) return cached;
-    const list = (await readDocs(eventsQuery(matchId))) as MatchEvent[];
+    const list = sortEvents((await readDocs(eventsQuery(matchId))) as MatchEvent[]);
     return localEvents.get(matchId) ?? list;
   }
   const setLocal = (matchId: string, list: MatchEvent[]) => {
     // 監視していない試合の一覧は保持し続けない（次回は読み直す）
     if (listenCount.get(matchId)) localEvents.set(matchId, list);
   };
+
+  let chain: Promise<unknown> = Promise.resolve();
+  function serial(task: () => Promise<void>): Promise<void> {
+    const run = chain.then(task);
+    chain = run.catch(() => undefined);
+    return run;
+  }
 
   function watchList<T>(q: Query, cb: (v: T[]) => void): Unsub {
     return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as T)), onError);
@@ -121,7 +130,8 @@ export function createFirestoreStore(
       const unsub = onSnapshot(
         eventsQuery(matchId),
         (snap) => {
-          const list = snap.docs.map((d) => d.data() as MatchEvent);
+          // 同じ seq があり得る（別端末の同時入力・古いキャッシュ）ので id で並びを確定させる
+          const list = sortEvents(snap.docs.map((d) => d.data() as MatchEvent));
           localEvents.set(matchId, list);
           cb(list);
         },
@@ -134,20 +144,22 @@ export function createFirestoreStore(
         else { listenCount.delete(matchId); localEvents.delete(matchId); }
       };
     },
-    async appendEvent(matchId, e) {
+    // appendEvent / undoLast は1つずつ順に処理する（素早い連打でも seq が重ならず、戻す対象もずれない）
+    appendEvent: (matchId, e) => serial(async () => {
       const list = await currentEvents(matchId);
-      const ev = buildNextEvent(list, e, Date.now());
+      // id に接尾辞を付けるので、キャッシュが古く seq が既存と重なっても他のイベントを上書きしない
+      const ev = buildNextEvent(list, e, Date.now(), (seq) => cloudEventId(seq, randomSuffix()));
       // スナップショットが届く前に続けて入力されても seq が重ならないよう、先に手元へ反映する
       setLocal(matchId, [...list, ev]);
       fire(setDoc(doc(eventsCol(matchId), ev.id), ev));
-    },
-    async undoLast(matchId) {
+    }),
+    undoLast: (matchId) => serial(async () => {
       const list = await currentEvents(matchId);
       const last = lastEvent(list);
       if (!last) return;
-      setLocal(matchId, list.filter((x) => x.seq !== last.seq));
+      setLocal(matchId, list.filter((x) => x !== last));
       fire(deleteDoc(doc(eventsCol(matchId), last.id)));
-    },
+    }),
     async updateEvent(matchId, id, patch) {
       let cur = (await currentEvents(matchId)).find((x) => x.id === id);
       if (!cur) {

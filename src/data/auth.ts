@@ -32,9 +32,9 @@ async function ensureSignedIn(): Promise<{ uid: string; db: Firestore }> {
   return { uid: user.uid, db };
 }
 
-/** コードの形式チェック（6 文字以上。Firestore のドキュメントID に使えない文字は不可） */
+/** コードの形式チェック（8 文字以上。Firestore のドキュメントID に使えない文字は不可） */
 export function validateCode(code: string): void {
-  if (code.length < 6) throw new Error('コードは6文字以上にしてください');
+  if (code.length < 8) throw new Error('コードは8文字以上にしてください');
   if (code.length > 64) throw new Error('コードは64文字以内にしてください');
   if (/[/\s]/.test(code) || /^__.*__$/.test(code) || code === '.' || code === '..') {
     throw new Error('コードに空白や「/」は使えません');

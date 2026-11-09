@@ -103,7 +103,7 @@ export function createMemoryStore(storage?: Storage): MemoryStore {
       const list = evs(matchId);
       const last = lastEvent(list);
       if (!last) return;
-      state = { ...state, events: { ...state.events, [matchId]: list.filter((x) => x.seq !== last.seq) } };
+      state = { ...state, events: { ...state.events, [matchId]: list.filter((x) => x !== last) } };
       commit();
     },
     async updateEvent(matchId, id, patch) {

@@ -40,7 +40,7 @@ service cloud.firestore {
       // 既存チームを指すコードを第三者が作って監督になりすますことを防ぐ。
       // create は既存ドキュメントがあると評価されない（= 上書き不可）。
       allow create: if signedIn()
-        && code.size() >= 6
+        && code.size() >= 8
         && request.resource.data.keys().hasOnly(['teamId', 'role', 'codeVersion'])
         && request.resource.data.teamId is string
         && request.resource.data.teamId.matches('^[A-Za-z0-9]+$')
@@ -79,7 +79,7 @@ service cloud.firestore {
           && request.auth.uid == uid
           && request.resource.data.keys().hasOnly(['role', 'codeVersion', 'code'])
           && request.resource.data.code is string
-          && request.resource.data.code.size() >= 6
+          && request.resource.data.code.size() >= 8
           && request.resource.data.code.matches('^[^/]+$')
           && existsAfter(codePath(request.resource.data.code))
           && getAfter(codePath(request.resource.data.code)).data.teamId == t

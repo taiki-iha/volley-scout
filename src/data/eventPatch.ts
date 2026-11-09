@@ -12,17 +12,38 @@ export const maxSeq = (list: readonly MatchEvent[]): number => list.reduce((m, x
 /** id = seq を10桁ゼロ埋め */
 export const eventId = (seq: number): string => String(seq).padStart(10, '0');
 
-/** 次に追加するイベント（seq = 最大 seq + 1） */
-export function buildNextEvent(list: readonly MatchEvent[], e: NewEvent, at: number): MatchEvent {
-  const seq = maxSeq(list) + 1;
-  return { ...e, seq, id: eventId(seq), at } as MatchEvent;
+/**
+ * クラウド版のイベント id = seq を10桁ゼロ埋め + '-' + ランダムな接尾辞。
+ * 端末のキャッシュが古くて既存と同じ seq になっても、別ドキュメントになるので他のイベントを上書きしない。
+ * 10桁ゼロ埋めなので id の文字列順は seq 順と一致する。
+ */
+export const cloudEventId = (seq: number, suffix: string): string => `${eventId(seq)}-${suffix}`;
+
+/** ランダムな接尾辞（英小文字と数字 8 文字） */
+export function randomSuffix(rand: () => number = Math.random): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let s = '';
+  for (let i = 0; i < 8; i++) s += chars[Math.floor(rand() * chars.length)];
+  return s;
 }
 
-/** undoLast で消す対象（最大 seq のイベント）。なければ null */
+/** イベントの並び順: seq 昇順、同じ seq なら id 昇順（どの端末でも同じ順になる） */
+export function compareEvents(a: MatchEvent, b: MatchEvent): number {
+  return a.seq - b.seq || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+export const sortEvents = (list: readonly MatchEvent[]): MatchEvent[] => [...list].sort(compareEvents);
+
+/** 次に追加するイベント（seq = 最大 seq + 1、id は makeId(seq)。既定は10桁ゼロ埋め） */
+export function buildNextEvent(
+  list: readonly MatchEvent[], e: NewEvent, at: number, makeId: (seq: number) => string = eventId,
+): MatchEvent {
+  const seq = maxSeq(list) + 1;
+  return { ...e, seq, id: makeId(seq), at } as MatchEvent;
+}
+
+/** undoLast で消す対象（並び順で最後 = 最大の (seq, id) のイベント）。なければ null */
 export function lastEvent(list: readonly MatchEvent[]): MatchEvent | null {
-  if (!list.length) return null;
-  const max = maxSeq(list);
-  return list.find((x) => x.seq === max) ?? null;
+  return list.reduce<MatchEvent | null>((m, x) => (m === null || compareEvents(x, m) > 0 ? x : m), null);
 }
 
 /**
