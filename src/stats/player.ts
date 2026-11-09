@@ -19,6 +19,7 @@ interface Acc {
 }
 
 const ZONES: Zone[] = [1, 2, 3, 4, 5, 6];
+export const ratio = (n: number, d: number): number | null => (d > 0 ? n / d : null);
 const other = (s: Side): Side => (s === 'us' ? 'them' : 'us');
 
 export function playerStats(data: MatchData[], filter?: { set?: number }): PlayerStats[] {
@@ -75,7 +76,6 @@ export function playerStats(data: MatchData[], filter?: { set?: number }): Playe
     }
   }
 
-  const ratio = (n: number, d: number): number | null => (d > 0 ? n / d : null);
   return [...map.values()]
     .sort((x, y) => (x.side === y.side ? x.no - y.no : x.side === 'us' ? -1 : 1))
     .map((a) => {
