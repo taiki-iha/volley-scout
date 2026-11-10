@@ -225,3 +225,18 @@ button.small { min-height: var(--tap); padding: 0 12px; font-size: 16px; }
 .bar-pair { flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .bar-line { display: flex; align-items: center; gap: 8px; }
 .bar { height: 16px; border-radius: 3px; min-width: 2px; }
+
+/* ---------- 仕上げ：1024×768 / 1440×900 のレイアウト調整 ---------- */
+html, body { overflow-x: hidden; }
+.row { flex-wrap: wrap; }
+.row > h1, .grow { min-width: 0; }
+.lib-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.sb-team { min-width: 0; }
+.sb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14ch; }
+.tabs button { min-height: var(--tap); }
+.dialog { max-width: 94vw; }
+.court-grid > .pl { min-height: var(--tap); }
+@media (min-width: 1280px) {
+  .live { max-width: 1400px; }
+  .live-right { width: 380px; }
+}
