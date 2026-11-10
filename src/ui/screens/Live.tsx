@@ -44,7 +44,7 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
   const curSet = state?.current?.set ?? 0;
   const curOver = state?.current?.over ?? false;
   useEffect(() => { setStep(IDLE); }, [curSet, curOver]);
-  useEffect(() => { setWantNextSet(false); }, [curSet]);
+  useEffect(() => { setWantNextSet(false); setFlowOpen(false); }, [curSet]);  // 新しいセットでは得点経過の枠を閉じる
 
   if (!matches || !events || !players || !opponents) return <div class="screen"><p class="muted">読み込み中…</p></div>;
   if (!match || !cfg || !state) return <div class="screen"><h1>試合が見つかりません</h1></div>;
@@ -150,7 +150,7 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
           {readonly && setEnd}
           {readonly && curFlow && (
             <section class="live-flow" aria-label="得点経過">
-              <ScoreFlow flow={curFlow} opponentName={oppName} follow />
+              <ScoreFlow key={flows.length} flow={curFlow} opponentName={oppName} follow />
               {pastFlows.length > 0 && (
                 <details class="sf-past">
                   <summary>これまでのセットの得点経過（{pastFlows.length}セット）</summary>
@@ -160,12 +160,14 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
               <ScoreFlowLegend />
             </section>
           )}
-          <ConditionList rows={rows} nameOf={nameOf} large={readonly} />
-          {!readonly && flowOpen && curFlow && (
-            <div class="flow-pop" role="region" aria-label="得点経過">
-              <ScoreFlow flow={curFlow} opponentName={oppName} follow compact />
-              <button class="flow-pop-close" onClick={() => setFlowOpen(false)}>閉じる</button>
+          {/* 入力画面で「得点経過」を開いている間は、調子リストの場所に出す（コートには重ねない） */}
+          {!readonly && flowOpen && curFlow ? (
+            <div class="panel-box flow-panel" role="region" aria-label="得点経過">
+              <ScoreFlow key={flows.length} flow={curFlow} opponentName={oppName} follow compact />
+              <button class="flow-panel-close" onClick={() => setFlowOpen(false)}>閉じる</button>
             </div>
+          ) : (
+            <ConditionList rows={rows} nameOf={nameOf} large={readonly} />
           )}
         </div>
         {!readonly && (

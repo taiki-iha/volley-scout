@@ -17,10 +17,16 @@ const KIND_TITLE: Record<FlowMarker['kind'], string> = { timeout: 'タイムア�
 /** テレビ中継の「得点経過」。1列が1ラリーで、取った側の段にその時点の得点を出す */
 export function ScoreFlow({ flow, opponentName, follow, compact }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
+  // 右端（最新）を見ているときだけ追いかける。手で前の方へ戻したら、そのまま止める
+  const atEnd = useRef(true);
+  const onScroll = () => {
+    const el = scroller.current;
+    if (el) atEnd.current = el.scrollLeft + el.clientWidth >= el.scrollWidth - 24;
+  };
   const n = flow.columns.length + flow.markers.length;
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (follow && el) el.scrollLeft = el.scrollWidth;
+    if (follow && el && atEnd.current) el.scrollLeft = el.scrollWidth;
   }, [follow, n]);
 
   const items: ComponentChildren[] = [];
@@ -60,7 +66,7 @@ export function ScoreFlow({ flow, opponentName, follow, compact }: Props) {
           <span class="sf-lab us">自チーム</span>
           <span class="sf-lab them">{opponentName}</span>
         </div>
-        <div class="sf-scroll" ref={scroller}>
+        <div class="sf-scroll" ref={scroller} onScroll={onScroll}>
           {flow.columns.length === 0 && flow.markers.length === 0
             ? <span class="sf-empty muted">まだ得点がありません</span>
             : <div class="sf-track">{items}</div>}

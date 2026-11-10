@@ -341,11 +341,9 @@ html, body { overflow-x: hidden; }
 .sf-past .sf-list { margin-top: 0; }
 .live-flow { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
 
-/* 入力画面: 「得点経過」ボタンで開く枠。左列の下側（調子リストの上）に重ねて、レイアウト・高さは変えない */
-.live-left { position: relative; }
-.flow-pop { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; align-items: center; gap: 8px; background: var(--card);
-  border: 2px solid var(--navy); border-radius: 10px; padding: 6px 8px; box-shadow: 0 -4px 16px rgba(20, 28, 48, 0.25); }
-.flow-pop > .sf { flex: 1; }
-.flow-pop-close { min-height: var(--tap); min-width: var(--tap); padding: 0 12px; font-size: 15px; }
+/* 入力画面: 「得点経過」ボタンで開く枠。開いている間は調子リストの代わりに出す（コートには重ねない） */
+.flow-panel { display: flex; align-items: center; gap: 8px; border: 2px solid var(--navy); }
+.flow-panel > .sf { flex: 1; }
+.flow-panel-close { min-height: var(--tap); min-width: var(--tap); padding: 0 12px; font-size: 15px; }
 button.flow-toggle { padding: 0 14px; white-space: nowrap; }
 button.flow-toggle.on { background: var(--navy); color: #fff; }
