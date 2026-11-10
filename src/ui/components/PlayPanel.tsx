@@ -1,5 +1,5 @@
 import type { Lineup, PlayKind, Side, Zone } from '../../core/types';
-import { PLAY_LABEL, SIDE_LABEL, ZONE_GRID, availablePlays, blockerCandidates, isScoring, type Step } from '../live.logic';
+import { PLAY_LABEL, SIDE_LABEL, ZONE_GRID, availablePlays, blockerCandidates, isScoring, showBlockHint, type Step } from '../live.logic';
 
 interface Props {
   step: Step;
@@ -25,9 +25,9 @@ export function PlayPanel({ step, lineups, serving, disabled, onPlay, onZone, on
       body = (
         <>
           <div class="pp-title"><b>{who}</b> → 何をした？</div>
-          {step.sel.side === 'them' && (
+          {showBlockHint(step.sel, lineups) && (
             // 相手の「ブロック得点」から入れると自チームの打者が不明になり、効果率が正しく出ない
-            <p class="pp-note">自チームのスパイクがブロックされたら、打った選手の「{PLAY_LABEL.spike_blocked}」で入力</p>
+            <p class="pp-note">被ブロックは自チーム打者の「{PLAY_LABEL.spike_blocked}」で入力</p>
           )}
           <div class="pp-btns">
             {availablePlays(step.sel, serving, lineups).map((p) => (

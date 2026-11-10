@@ -1,7 +1,7 @@
 // 試合中の入力画面（Live / SetStart / MatchSetup / SubDialog）の判断ロジック。画面から切り出してテストする。
 import { badCondition } from '../core/condition';
 import type { MatchState } from '../core/replay';
-import { server, setterRotation } from '../core/rotation';
+import { isFrontRow, server, setterRotation } from '../core/rotation';
 import { pointWinner } from '../core/rules';
 import type {
   ConditionThresholds, Lineup, MatchConfig, MatchEvent, OpponentPlayer, OpponentTeam, PlayKind, Player, Position, Side, Zone,
@@ -69,6 +69,15 @@ export function isCurrentServer(sel: Sel, serving: Side, lineups: Record<Side, L
 export function availablePlays(sel: Sel, serving: Side, lineups: Record<Side, Lineup>): (PlayKind | 'attempt')[] {
   const serverSelected = isCurrentServer(sel, serving, lineups);
   return PLAY_ORDER.filter((p) => serverSelected || (p !== 'serve_ace' && p !== 'serve_error'));
+}
+
+/**
+ * 「被ブロックは自チームの打者から入力」の案内を出すか。相手の「ブロック得点」から入れると自チームの打者が
+ * 不明になり効果率が正しく出ないため。ブロックできるのは前衛（ポジション 2,3,4）の相手選手だけなので、そのときだけ出す
+ * （サーバーは後衛なので、プレーが一番多いときに1行増えて 1024×768 からはみ出すこともない）。
+ */
+export function showBlockHint(sel: Sel, lineups: Record<Side, Lineup>): boolean {
+  return sel.side === 'them' && isFrontRow(lineups.them, sel.player);
 }
 
 // ---------- 入力の段階（選手 → プレー → ゾーン → ブロッカー） ----------

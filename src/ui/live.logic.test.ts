@@ -4,7 +4,7 @@ import { DEFAULT_THRESHOLDS } from '../core/condition';
 import type { Lineup, MatchConfig, MatchEvent, Side } from '../core/types';
 import type { NewEvent } from '../data/store';
 import {
-  IDLE, assignSlot, availablePlays, backRow, benchOf, blockerCandidates, buildAttemptEvent, buildMatchConfig, buildRallyEvent, canStartSet,
+  IDLE, assignSlot, availablePlays, backRow, showBlockHint, benchOf, blockerCandidates, buildAttemptEvent, buildMatchConfig, buildRallyEvent, canStartSet,
   chooseBlocker, choosePlay, chooseZone, conditionRows, initialDraft, liberoReplaced, needsZone, nextEmptySlot, nextSetNeeded,
   nextSetNo, rotationLabel, subOutCandidates, toggleLibero, validateSetStart, withOpponentNo, type SetStartDraft, type Step,
 } from './live.logic';
@@ -69,6 +69,15 @@ describe('availablePlays', () => {
     expect(cur.serving).toBe('us');
     expect(availablePlays({ side: 'us', player: 2 }, cur.serving, cur.lineups)).toContain('serve_ace');
     expect(availablePlays({ side: 'us', player: 1 }, cur.serving, cur.lineups)).not.toContain('serve_ace');
+  });
+});
+
+describe('showBlockHint', () => {
+  it('相手の前衛（ポジション 2,3,4）を選んだときだけ', () => {
+    const lineups = { us: US, them: THEM };
+    expect([12, 13, 14].map((no) => showBlockHint({ side: 'them', player: no }, lineups))).toEqual([true, true, true]);
+    expect([11, 15, 16].map((no) => showBlockHint({ side: 'them', player: no }, lineups))).toEqual([false, false, false]);
+    expect(showBlockHint({ side: 'us', player: 3 }, lineups)).toBe(false);
   });
 });
 
