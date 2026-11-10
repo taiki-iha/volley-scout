@@ -132,4 +132,13 @@ describe('memoryStore', () => {
     await expect(s.appendEvent(id, rally('spike_kill'))).rejects.toThrow('quota');
     expect(got).toHaveLength(1);
   });
+  it('相手チーム一覧は名前順で通知する', async () => {
+    const s = createMemoryStore();
+    await s.saveOpponent({ id: 'b', name: '西高', players: [] });
+    await s.saveOpponent({ id: 'a', name: 'A中', players: [] });
+    await s.saveOpponent({ id: 'c', name: 'あおば', players: [] });
+    let names: string[] = [];
+    s.watchOpponents((o) => { names = o.map((x) => x.name); });
+    expect(names).toEqual(['A中', 'あおば', '西高']);
+  });
 });

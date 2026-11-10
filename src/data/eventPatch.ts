@@ -67,3 +67,8 @@ export function applyEventPatch(cur: MatchEvent, patch: EventPatch): MatchEvent 
   }
   throw new Error('このイベントは修正できません');
 }
+
+/** 相手チーム一覧の並び順（名前順、同名は id 順）。memoryStore と firestoreStore で同じ順にする */
+export function sortOpponents<T extends { id: string; name: string }>(list: readonly T[]): T[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name, 'ja') || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}

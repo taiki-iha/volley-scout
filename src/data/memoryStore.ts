@@ -1,6 +1,6 @@
 import { DEFAULT_THRESHOLDS } from '../core/condition';
 import type { Match, MatchEvent, OpponentTeam, Player, Reception } from '../core/types';
-import { applyEventPatch, buildNextEvent, lastEvent } from './eventPatch';
+import { applyEventPatch, buildNextEvent, lastEvent, sortOpponents } from './eventPatch';
 import type { NewEvent, Settings, Store, Unsub } from './store';
 
 const KEY = 'volley-scout:v1';
@@ -72,7 +72,7 @@ export function createMemoryStore(storage?: Storage): MemoryStore {
     async savePlayer(p) { state = { ...state, players: upsert(state.players, p, (x) => x.no === p.no) }; commit(); },
     async deletePlayer(no) { state = { ...state, players: state.players.filter((x) => x.no !== no) }; commit(); },
 
-    watchOpponents: (cb) => watch(() => state.opponents, cb),
+    watchOpponents: (cb) => watch(() => sortOpponents(state.opponents), cb),
     async saveOpponent(o) { state = { ...state, opponents: upsert(state.opponents, o, (x) => x.id === o.id) }; commit(); },
     async deleteOpponent(id) { state = { ...state, opponents: state.opponents.filter((x) => x.id !== id) }; commit(); },
 

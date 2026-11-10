@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { MatchEvent } from '../core/types';
-import { applyEventPatch, buildNextEvent, cloudEventId, eventId, lastEvent, maxSeq, randomSuffix, sortEvents } from './eventPatch';
+import { applyEventPatch, buildNextEvent, cloudEventId, eventId, lastEvent, maxSeq, randomSuffix, sortEvents, sortOpponents } from './eventPatch';
 
 const rally = (seq: number): MatchEvent => ({
   id: eventId(seq), seq, set: 1, at: 0, t: 'rally', side: 'us', player: 4, play: 'spike_kill', zone: 4, blocker: null, pointTo: 'us',
@@ -50,5 +50,13 @@ describe('eventPatch', () => {
     expect(applyEventPatch(attempt, { player: 9, zone: null })).toMatchObject({ player: 9, zone: null });
     expect(() => applyEventPatch(attempt, { play: 'spike_kill' } as never)).toThrow('この項目は修正できません');
     expect(() => applyEventPatch(timeout, { zone: 1 })).toThrow('このイベントは修正できません');
+  });
+});
+
+describe('sortOpponents', () => {
+  it('名前順、同名は id 順。元の配列は変えない', () => {
+    const list = [{ id: 'z', name: 'B' }, { id: 'y', name: 'A' }, { id: 'x', name: 'B' }];
+    expect(sortOpponents(list).map((o) => o.id)).toEqual(['y', 'x', 'z']);
+    expect(list[0].id).toBe('z');
   });
 });

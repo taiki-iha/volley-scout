@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { DEFAULT_THRESHOLDS } from '../core/condition';
 import type { Match, MatchEvent, OpponentTeam, Player, Reception } from '../core/types';
-import { applyEventPatch, buildNextEvent, cloudEventId, lastEvent, randomSuffix, sortEvents } from './eventPatch';
+import { applyEventPatch, buildNextEvent, cloudEventId, lastEvent, randomSuffix, sortEvents, sortOpponents } from './eventPatch';
 import type { Settings, Store, Unsub } from './store';
 
 const dbs = new WeakMap<FirebaseApp, Firestore>();
@@ -104,7 +104,7 @@ export function createFirestoreStore(
     async savePlayer(p) { fire(setDoc(ref('players', String(p.no)), p)); },
     async deletePlayer(no) { fire(deleteDoc(ref('players', String(no)))); },
 
-    watchOpponents: (cb) => watchList<OpponentTeam>(col('opponents'), cb),
+    watchOpponents: (cb) => watchList<OpponentTeam>(col('opponents'), (list) => cb(sortOpponents(list))),
     async saveOpponent(o) { fire(setDoc(ref('opponents', o.id), o)); },
     async deleteOpponent(id) { fire(deleteDoc(ref('opponents', id))); },
 
