@@ -56,6 +56,8 @@ export function playerRows(stats: PlayerStats[], players: Player[]): CsvRow[] {
     選手: playerLabel(s.no, players),
     スパイク本数: s.spike.attempts, 決定: s.spike.kills, ミス: s.spike.errors, ブロックされ: s.spike.blocked,
     決定率: fmtPct(s.spike.killRate), 効果率: fmtPct(s.spike.efficiency),
+    // ゾーン別の決定数（相手得点の表と同じくゾーンごとに1列。サーブの列と紛れないよう「決定」を付ける）
+    ...Object.fromEntries(ZONES.map((z) => [`決定ゾーン${z}`, s.spike.killsByZone[z]])),
     サーブ本数: s.serve.total, エース: s.serve.aces, サーブミス: s.serve.errors, サーブミス率: fmtPct(s.serve.errorRate),
     ブロック得点: s.blockPoints,
     レシーブ本数: s.reception.total, A: s.reception.A, B: s.reception.B, C: s.reception.C, D: s.reception.D,

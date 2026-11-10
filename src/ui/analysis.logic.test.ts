@@ -54,4 +54,16 @@ describe('rows', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ 選手: '3 山田', 決定率: '-' });
   });
+  it('選手行にゾーン別の決定数（決定ゾーン1〜6）が効果率の後に並ぶ', () => {
+    const s = {
+      side: 'us' as const, no: 4,
+      spike: { attempts: 5, kills: 3, errors: 1, blocked: 0, killRate: 0.6, efficiency: 0.4, killsByZone: { 1: 1, 2: 0, 3: 0, 4: 2, 5: 0, 6: 0 } },
+      serve: { total: 0, aces: 0, errors: 0, errorRate: null }, blockPoints: 0,
+      reception: { total: 0, A: 0, B: 0, C: 0, D: 0, passRate: null, perfectRate: null },
+    };
+    const row = playerRows([s], [])[0];
+    expect(row).toMatchObject({ 決定ゾーン1: 1, 決定ゾーン2: 0, 決定ゾーン3: 0, 決定ゾーン4: 2, 決定ゾーン5: 0, 決定ゾーン6: 0 });
+    const keys = Object.keys(row);
+    expect(keys.slice(keys.indexOf('効果率') + 1, keys.indexOf('効果率') + 7)).toEqual(['決定ゾーン1', '決定ゾーン2', '決定ゾーン3', '決定ゾーン4', '決定ゾーン5', '決定ゾーン6']);
+  });
 });
