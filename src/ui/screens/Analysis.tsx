@@ -11,7 +11,9 @@ import {
 } from '../analysis.logic';
 import { BarChart } from '../components/BarChart';
 import { CourseChart } from '../components/CourseChart';
+import { ScoreFlow, ScoreFlowLegend } from '../components/ScoreFlow';
 import { StatTable } from '../components/StatTable';
+import { scoreFlow } from '../scoreFlow.logic';
 
 /** 選択した試合すべての events / receptions を購読する。全試合ぶん届くまで undefined */
 function useMatchData(matches: Match[]): MatchData[] | undefined {
@@ -39,8 +41,8 @@ function useMatchData(matches: Match[]): MatchData[] | undefined {
   return data && data.key === key ? data.list : undefined;
 }
 
-type Tab = 'player' | 'rotation' | 'opponent';
-const TAB_LABEL: Record<Tab, string> = { player: '選手別', rotation: 'ローテ別', opponent: '相手' };
+type Tab = 'player' | 'rotation' | 'opponent' | 'flow';
+const TAB_LABEL: Record<Tab, string> = { player: '選手別', rotation: 'ローテ別', opponent: '相手', flow: '得点経過' };
 
 function preselectedMatch(): string {
   const q = location.hash.split('?')[1] ?? '';
@@ -130,6 +132,10 @@ export function Analysis() {
         </>
       ) : tab === 'rotation' ? (
         <RotationTab data={data} fileName={fileName('ローテ別')} />
+      ) : tab === 'flow' ? (
+        one && data.length === 1
+          ? <FlowTab data={data[0]} opponentName={teamName(one.opponentId)} />
+          : <p class="muted">得点経過は、上の「試合を1つ選ぶ」で試合を選ぶと、セットごとに表示されます。</p>
       ) : (
         <>
           <StatTable title={`${oppTeam?.name ?? ''} 選手別の得点（打った位置別・落下ゾーン別）`} rows={scorerRows(opponentScorers(data), oppTeam)} fileName={fileName('相手得点')} />
@@ -158,5 +164,19 @@ function RotationTab({ data, fileName }: { data: MatchData[]; fileName: string }
         <BarChart rows={stats.map((r) => ({ label: `S${r.rotation}`, won: r.pointsWon, lost: r.pointsLost }))} />
       </section>
     </>
+  );
+}
+
+/** 選んだ1試合の得点経過（セットごと） */
+function FlowTab({ data, opponentName }: { data: MatchData; opponentName: string }) {
+  const flows = useMemo(() => scoreFlow(data.cfg, data.events), [data]);
+  return (
+    <section class="card">
+      <h2>得点経過</h2>
+      {flows.length === 0
+        ? <p class="muted">セット開始の記録がありません</p>
+        : <div class="sf-list">{flows.map((f, i) => <ScoreFlow key={i} flow={f} opponentName={opponentName} />)}</div>}
+      <ScoreFlowLegend />
+    </section>
   );
 }

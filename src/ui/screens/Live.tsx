@@ -7,6 +7,7 @@ import { useStore, useWatch } from '../../data/StoreContext';
 import { ConditionList } from '../components/ConditionList';
 import { Court } from '../components/Court';
 import { PlayPanel } from '../components/PlayPanel';
+import { ScoreFlow, ScoreFlowLegend } from '../components/ScoreFlow';
 import { Scoreboard } from '../components/Scoreboard';
 import { SubDialog } from '../components/SubDialog';
 import {
@@ -14,6 +15,7 @@ import {
   nextSetNeeded, nextSetNo, type Step, type StepResult,
 } from '../live.logic';
 import { report } from '../notify';
+import { scoreFlow } from '../scoreFlow.logic';
 import { navigate } from '../router';
 import { SetStart } from './SetStart';
 
@@ -29,10 +31,12 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
   const cfg = match?.config;
   // 表示はすべて、監視しているイベントの replay から作る（手元の仮の状態は持たない）
   const state = useMemo(() => (cfg && events ? replay(cfg, events) : null), [cfg, events]);
+  const flows = useMemo(() => (cfg && events ? scoreFlow(cfg, events) : []), [cfg, events]);
 
   const [step, setStep] = useState<Step>(IDLE);
   const [wantNextSet, setWantNextSet] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
+  const [flowOpen, setFlowOpen] = useState(false);  // 入力画面の「得点経過」枠
   // R4 の最終確認は、送信の瞬間の最新イベント（watch で届いたもの）に対して行う
   const latest = useRef<{ events: MatchEvent[] | undefined }>({ events });
   latest.current.events = events;
@@ -117,10 +121,16 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
     </div>
   );
 
+  const curFlow = flows.length ? flows[flows.length - 1] : null;
+  const pastFlows = flows.slice(0, -1).reverse();
+
   return (
     <div class={`live${readonly ? ' readonly' : ''}`}>
       <div class="live-top">
         <Scoreboard cur={cur} setsWon={state.setsWon} opponentName={oppName} />
+        {!readonly && (
+          <button class={`flow-toggle${flowOpen ? ' on' : ''}`} aria-pressed={flowOpen} onClick={() => setFlowOpen((o) => !o)}>得点経過</button>
+        )}
         {modeLink}
       </div>
       <div class="live-main">
@@ -138,7 +148,25 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
             <div class="warnings" role="status">{state.warnings.map((w) => <div key={w}>⚠ {w}</div>)}</div>
           )}
           {readonly && setEnd}
+          {readonly && curFlow && (
+            <section class="live-flow" aria-label="得点経過">
+              <ScoreFlow flow={curFlow} opponentName={oppName} follow />
+              {pastFlows.length > 0 && (
+                <details class="sf-past">
+                  <summary>これまでのセットの得点経過（{pastFlows.length}セット）</summary>
+                  <div class="sf-list">{pastFlows.map((f, i) => <ScoreFlow key={i} flow={f} opponentName={oppName} />)}</div>
+                </details>
+              )}
+              <ScoreFlowLegend />
+            </section>
+          )}
           <ConditionList rows={rows} nameOf={nameOf} large={readonly} />
+          {!readonly && flowOpen && curFlow && (
+            <div class="flow-pop" role="region" aria-label="得点経過">
+              <ScoreFlow flow={curFlow} opponentName={oppName} follow compact />
+              <button class="flow-pop-close" onClick={() => setFlowOpen(false)}>閉じる</button>
+            </div>
+          )}
         </div>
         {!readonly && (
           <div class="live-right">

@@ -302,3 +302,50 @@ html, body { overflow-x: hidden; }
 .course-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sw.ace { background: #c0392b; transform: rotate(45deg) scale(0.8); }
 .an-note { font-size: 14px; margin: -8px 0 0; }
+
+/* ---------- 得点経過（テレビ中継の得点の並び） ---------- */
+.sf { --sf-us: #2a6fdb; --sf-them: #d6453d; --sf-w: 30px; --sf-h: 30px; min-width: 0; }
+.sf.compact { --sf-w: 26px; --sf-h: 26px; }
+.sf-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 15px; margin-bottom: 4px; color: var(--navy); }
+.sf-score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.sf-body { display: flex; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+.sf-labels { display: flex; flex-direction: column; flex-shrink: 0; border-right: 2px solid var(--line); }
+.sf-lab { height: var(--sf-h); line-height: var(--sf-h); padding: 0 8px; font-size: 13px; font-weight: 700; white-space: nowrap; max-width: 9em; overflow: hidden; text-overflow: ellipsis; }
+.sf-lab.us { color: var(--sf-us); border-bottom: 1px solid var(--line); }
+.sf-lab.them { color: var(--sf-them); }
+/* 長いセットは枠の中だけ横スクロール（ページは横に動かさない） */
+.sf-scroll { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+.sf-track { display: flex; width: max-content; }
+.sf-col { display: flex; flex-direction: column; width: var(--sf-w); flex-shrink: 0; }
+.sf-cell { height: var(--sf-h); line-height: var(--sf-h); text-align: center; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sf.compact .sf-cell { font-size: 14px; }
+.sf-cell.us { border-bottom: 1px solid var(--line); }
+.sf-cell.us.on { color: var(--sf-us); }
+.sf-cell.them.on { color: var(--sf-them); }
+.sf-col.run-us .sf-cell.us.on { background: var(--sf-us); color: #fff; }
+.sf-col.run-them .sf-cell.them.on { background: var(--sf-them); color: #fff; }
+.sf-mk { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; width: 20px; margin: 0 1px; line-height: 1;
+  border-left: 2px dashed #9aa3b8; border-right: 2px dashed #9aa3b8; background: #fff4d6; color: #6b4f00; }
+.sf-mk b { font-size: 13px; }
+.sf-mk small { font-size: 10px; font-weight: 700; margin-top: 2px; }
+.sf-mk.us small { color: var(--sf-us); }
+.sf-mk.them small { color: var(--sf-them); }
+.sf-empty { display: block; padding: 0 10px; line-height: calc(var(--sf-h) * 2); font-size: 14px; }
+.sf-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; margin-top: 6px; align-items: center; }
+.sf-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw.sf-sw-us { background: #2a6fdb; }
+.sw.sf-sw-them { background: #d6453d; }
+.sf-list { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.sf-past { margin-top: 6px; }
+.sf-past > summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--navy); font-size: 15px; }
+.sf-past .sf-list { margin-top: 0; }
+.live-flow { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
+
+/* 入力画面: 「得点経過」ボタンで開く枠。左列の下側（調子リストの上）に重ねて、レイアウト・高さは変えない */
+.live-left { position: relative; }
+.flow-pop { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; align-items: center; gap: 8px; background: var(--card);
+  border: 2px solid var(--navy); border-radius: 10px; padding: 6px 8px; box-shadow: 0 -4px 16px rgba(20, 28, 48, 0.25); }
+.flow-pop > .sf { flex: 1; }
+.flow-pop-close { min-height: var(--tap); min-width: var(--tap); padding: 0 12px; font-size: 15px; }
+button.flow-toggle { padding: 0 14px; white-space: nowrap; }
+button.flow-toggle.on { background: var(--navy); color: #fff; }
