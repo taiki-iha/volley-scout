@@ -46,6 +46,20 @@ function validateCodePair(memberCode: string, adminCode: string): void {
   if (memberCode === adminCode) throw new Error('選手用と監督用は別のコードにしてください');
 }
 
+/** この端末に保存した参加状況を消す（コード変更で締め出されたときなど） */
+export function clearMembership(): void { saveMembership(null); }
+
+/** p が ms 以内に終わらなければ fallback で解決する（p 自体は止めずに続ける） */
+export function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      () => { clearTimeout(timer); resolve(fallback); },
+    );
+  });
+}
+
 function saveMembership(m: Membership | null): void {
   try {
     if (m) localStorage.setItem(MEMBERSHIP_KEY, JSON.stringify(m));
@@ -137,10 +151,23 @@ export async function changeCodes(teamId: string, newMemberCode: string, newAdmi
 }
 
 /**
- * この端末の参加状況。未参加・コード変更で無効になった場合は null。
+ * この端末の参加状況（起動時用）。未参加なら null。
+ * 電波が弱くても起動が止まらないよう、前回保存した参加状況を基本にし、サーバーでの確認は timeoutMs まで待つ。
+ * 時間内に確認できればその結果（コード変更で無効なら null）、できなければ保存済みの参加状況を返す。
+ * 確認は裏で続き、無効と分かれば保存を消す（その後の読み込みは権限エラーになり、main.tsx が参加画面へ戻す）。
+ */
+export async function currentMembership(timeoutMs = 3000): Promise<Membership | null> {
+  if (!isCloudConfigured()) return null;
+  const saved = loadMembership();
+  if (!saved) return null;
+  return withTimeout(verifyMembership(), timeoutMs, saved);
+}
+
+/**
+ * サーバーで参加状況を確かめる。未参加・コード変更で無効になった場合は null（保存も消す）。
  * オフラインでサーバーに確認できないときは、前回の参加状況をそのまま返す（オフラインでも記録できるように）。
  */
-export async function currentMembership(): Promise<Membership | null> {
+export async function verifyMembership(): Promise<Membership | null> {
   if (!isCloudConfigured()) return null;
   const saved = loadMembership();
   if (!saved) return null;

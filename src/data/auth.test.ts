@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isCloudConfigured, validateCode } from './auth';
+import { isCloudConfigured, validateCode, withTimeout } from './auth';
 
 describe('auth', () => {
   it('validateCode: 8文字以上、空白や / は不可', () => {
@@ -13,5 +13,10 @@ describe('auth', () => {
   });
   it('firebaseConfig が null の間はお試しモード', () => {
     expect(isCloudConfigured()).toBe(false);
+  });
+  it('withTimeout: 時間内なら結果、遅い・失敗なら fallback', async () => {
+    expect(await withTimeout(Promise.resolve('server'), 50, 'saved')).toBe('server');
+    expect(await withTimeout(new Promise<string>(() => {}), 10, 'saved')).toBe('saved');
+    expect(await withTimeout(Promise.reject(new Error('x')), 50, 'saved')).toBe('saved');
   });
 });
