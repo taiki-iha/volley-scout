@@ -4,7 +4,7 @@ import { DEFAULT_THRESHOLDS } from '../core/condition';
 import type { Lineup, MatchConfig, MatchEvent, Side } from '../core/types';
 import type { NewEvent } from '../data/store';
 import {
-  IDLE, assignSlot, backRow, benchOf, blockerCandidates, buildAttemptEvent, buildMatchConfig, buildRallyEvent, canStartSet,
+  IDLE, assignSlot, availablePlays, backRow, benchOf, blockerCandidates, buildAttemptEvent, buildMatchConfig, buildRallyEvent, canStartSet,
   chooseBlocker, choosePlay, chooseZone, conditionRows, initialDraft, liberoReplaced, needsZone, nextEmptySlot, nextSetNeeded,
   nextSetNo, rotationLabel, subOutCandidates, toggleLibero, validateSetStart, withOpponentNo, type SetStartDraft, type Step,
 } from './live.logic';
@@ -44,6 +44,31 @@ describe('buildRallyEvent', () => {
   });
   it('スパイク（継続）は attempt', () => {
     expect(buildAttemptEvent(1, 'us', 4, 3)).toEqual({ t: 'attempt', set: 1, side: 'us', player: 4, zone: 3 });
+  });
+});
+
+describe('availablePlays', () => {
+  const lineups = { us: US, them: THEM };
+  it('サーブ権のある側のポジション1の選手だけサーブエース・サーブミスを出す', () => {
+    expect(availablePlays({ side: 'us', player: 1 }, 'us', lineups)).toContain('serve_ace');
+    expect(availablePlays({ side: 'us', player: 1 }, 'us', lineups)).toContain('serve_error');
+    expect(availablePlays({ side: 'them', player: 11 }, 'them', lineups)).toContain('serve_ace');
+  });
+  it('サーバー以外・サーブ権のない側には出さない（他のプレーは同じ順）', () => {
+    const plays = availablePlays({ side: 'us', player: 4 }, 'us', lineups);
+    expect(plays).not.toContain('serve_ace');
+    expect(plays).not.toContain('serve_error');
+    expect(plays).toEqual(['spike_kill', 'spike_error', 'block_point', 'spike_blocked', 'other_point', 'other_error', 'attempt']);
+    // ポジション1でもサーブ権がなければ出さない
+    expect(availablePlays({ side: 'us', player: 1 }, 'them', lineups)).not.toContain('serve_ace');
+    expect(availablePlays({ side: 'them', player: 11 }, 'us', lineups)).not.toContain('serve_error');
+  });
+  it('ローテ後のサーバーに追従する', () => {
+    const evs = [start(1, 'them'), ...points(1, 'us', 1)];
+    const cur = replay(cfg, evs).current!;
+    expect(cur.serving).toBe('us');
+    expect(availablePlays({ side: 'us', player: 2 }, cur.serving, cur.lineups)).toContain('serve_ace');
+    expect(availablePlays({ side: 'us', player: 1 }, cur.serving, cur.lineups)).not.toContain('serve_ace');
   });
 });
 

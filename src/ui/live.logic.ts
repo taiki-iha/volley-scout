@@ -1,7 +1,7 @@
 // 試合中の入力画面（Live / SetStart / MatchSetup / SubDialog）の判断ロジック。画面から切り出してテストする。
 import { badCondition } from '../core/condition';
 import type { MatchState } from '../core/replay';
-import { setterRotation } from '../core/rotation';
+import { server, setterRotation } from '../core/rotation';
 import { pointWinner } from '../core/rules';
 import type {
   ConditionThresholds, Lineup, MatchConfig, MatchEvent, OpponentPlayer, OpponentTeam, PlayKind, Player, Position, Side, Zone,
@@ -58,6 +58,17 @@ export function buildRallyEvent(
 
 export function buildAttemptEvent(set: number, side: Side, player: number, zone: Zone | null): AttemptNewEvent {
   return { t: 'attempt', set, side, player, zone };
+}
+
+/** 選んだ選手が、今サーブ権を持つ側のサーバー（ポジション1）か */
+export function isCurrentServer(sel: Sel, serving: Side, lineups: Record<Side, Lineup>): boolean {
+  return sel.side === serving && server(lineups[serving]) === sel.player;
+}
+
+/** 選んだ選手に出すプレーの一覧（PLAY_ORDER の順）。サーブエース・サーブミスは今のサーバーのときだけ */
+export function availablePlays(sel: Sel, serving: Side, lineups: Record<Side, Lineup>): (PlayKind | 'attempt')[] {
+  const serverSelected = isCurrentServer(sel, serving, lineups);
+  return PLAY_ORDER.filter((p) => serverSelected || (p !== 'serve_ace' && p !== 'serve_error'));
 }
 
 // ---------- 入力の段階（選手 → プレー → ゾーン → ブロッカー） ----------

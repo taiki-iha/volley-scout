@@ -1,9 +1,10 @@
 import type { Lineup, PlayKind, Side, Zone } from '../../core/types';
-import { PLAY_LABEL, PLAY_ORDER, SIDE_LABEL, ZONE_GRID, blockerCandidates, isScoring, type Step } from '../live.logic';
+import { PLAY_LABEL, SIDE_LABEL, ZONE_GRID, availablePlays, blockerCandidates, isScoring, type Step } from '../live.logic';
 
 interface Props {
   step: Step;
   lineups: Record<Side, Lineup>;
+  serving: Side;                          // サーブ権のある側（サーブ系のプレーはそのサーバーだけに出す）
   disabled: boolean;                      // セット終了後など
   onPlay: (p: PlayKind | 'attempt') => void;
   onZone: (z: Zone | null) => void;
@@ -12,7 +13,7 @@ interface Props {
   onCancel: () => void;
 }
 
-export function PlayPanel({ step, lineups, disabled, onPlay, onZone, onBlocker, onNoPlayer, onCancel }: Props) {
+export function PlayPanel({ step, lineups, serving, disabled, onPlay, onZone, onBlocker, onNoPlayer, onCancel }: Props) {
   let body;
   if (disabled) {
     body = <p class="muted">セットが終わっています</p>;
@@ -25,7 +26,7 @@ export function PlayPanel({ step, lineups, disabled, onPlay, onZone, onBlocker, 
         <>
           <div class="pp-title"><b>{who}</b> → 何をした？</div>
           <div class="pp-btns">
-            {PLAY_ORDER.map((p) => (
+            {availablePlays(step.sel, serving, lineups).map((p) => (
               <button key={p} class={`pp-b ${p === 'attempt' ? 'neutral wide' : isScoring(p) ? 'good' : 'bad'}`} onClick={() => onPlay(p)}>
                 {PLAY_LABEL[p]}
               </button>

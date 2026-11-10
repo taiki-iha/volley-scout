@@ -139,7 +139,7 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
         {!readonly && (
           <div class="live-right">
             {setEnd}
-            <PlayPanel step={step} lineups={cur.lineups} disabled={cur.over}
+            <PlayPanel step={step} lineups={cur.lineups} serving={cur.serving} disabled={cur.over}
               onPlay={(p) => apply(choosePlay(step, p, cur.set))}
               onZone={(z) => apply(chooseZone(step, z, cur.set))}
               onBlocker={(b) => apply(chooseBlocker(step, b, cur.set))}
