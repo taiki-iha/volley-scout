@@ -25,6 +25,10 @@ export function PlayPanel({ step, lineups, serving, disabled, onPlay, onZone, on
       body = (
         <>
           <div class="pp-title"><b>{who}</b> → 何をした？</div>
+          {step.sel.side === 'them' && (
+            // 相手の「ブロック得点」から入れると自チームの打者が不明になり、効果率が正しく出ない
+            <p class="pp-note">自チームのスパイクがブロックされたら、打った選手の「{PLAY_LABEL.spike_blocked}」で入力</p>
+          )}
           <div class="pp-btns">
             {availablePlays(step.sel, serving, lineups).map((p) => (
               <button key={p} class={`pp-b ${p === 'attempt' ? 'neutral wide' : isScoring(p) ? 'good' : 'bad'}`} onClick={() => onPlay(p)}>
