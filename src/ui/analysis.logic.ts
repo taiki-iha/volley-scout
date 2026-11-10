@@ -31,12 +31,14 @@ export function filterMatches(
     .sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1));
 }
 
-/** volley_<種類>_<日付YYYYMMDD>.csv */
-export function csvFileName(kind: KindFilter, now: Date): string {
+export type CsvTable = '選手別' | 'ローテ別' | '相手得点' | '相手サーバー別';
+
+/** volley_<種類>_<日付YYYYMMDD>.csv（種類 = 出力する表） */
+export function csvFileName(table: CsvTable, now: Date): string {
   const y = now.getFullYear();
   const mo = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
-  return `volley_${KIND_LABEL[kind]}_${y}${mo}${d}.csv`;
+  return `volley_${table}_${y}${mo}${d}.csv`;
 }
 
 export function playerLabel(no: number, players: Player[]): string {

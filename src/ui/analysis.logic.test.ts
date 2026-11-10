@@ -28,8 +28,8 @@ describe('filterMatches', () => {
 
 describe('csvFileName', () => {
   it('種類と日付', () => {
-    expect(csvFileName('official', new Date(2026, 0, 5))).toBe('volley_公式戦_20260105.csv');
-    expect(csvFileName('all', new Date(2026, 10, 9))).toBe('volley_すべて_20261109.csv');
+    expect(csvFileName('選手別', new Date(2026, 0, 5))).toBe('volley_選手別_20260105.csv');
+    expect(csvFileName('相手サーバー別', new Date(2026, 10, 9))).toBe('volley_相手サーバー別_20261109.csv');
   });
 });
 

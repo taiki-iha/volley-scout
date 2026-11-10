@@ -5,7 +5,7 @@ import { opponentScorers, receptionByOpponentServer } from '../../stats/opponent
 import { playerStats } from '../../stats/player';
 import { rotationStats } from '../../stats/rotation';
 import {
-  KIND_LABEL, csvFileName, filterMatches, playerRows, rotationRows, scorerRows, serverRows, type KindFilter,
+  KIND_LABEL, csvFileName, type CsvTable, filterMatches, playerRows, rotationRows, scorerRows, serverRows, type KindFilter,
 } from '../analysis.logic';
 import { BarChart } from '../components/BarChart';
 import { StatTable } from '../components/StatTable';
@@ -71,8 +71,7 @@ export function Analysis() {
     [tab, inFilter, effOpp],
   );
   const data = useMatchData(target);
-  const csvKind: KindFilter = one ? one.kind : kind;
-  const fileName = csvFileName(csvKind, new Date());
+  const fileName = (t: CsvTable) => csvFileName(t, new Date());
   const oppTeam = teams?.find((t) => t.id === effOpp);
 
   return (
@@ -120,13 +119,13 @@ export function Analysis() {
       {matches === undefined || players === undefined || teams === undefined || data === undefined ? (
         <p class="muted">読み込み中…</p>
       ) : tab === 'player' ? (
-        <StatTable title="選手別成績" rows={playerRows(playerStats(data), players)} fileName={fileName} />
+        <StatTable title="選手別成績" rows={playerRows(playerStats(data), players)} fileName={fileName('選手別')} />
       ) : tab === 'rotation' ? (
-        <RotationTab data={data} fileName={fileName} />
+        <RotationTab data={data} fileName={fileName('ローテ別')} />
       ) : (
         <>
-          <StatTable title={`${oppTeam?.name ?? ''} 選手別の得点（ゾーン別）`} rows={scorerRows(opponentScorers(data), oppTeam)} fileName={fileName} />
-          <StatTable title="相手サーバー別のレシーブ成績" rows={serverRows(receptionByOpponentServer(data), oppTeam)} fileName={fileName} />
+          <StatTable title={`${oppTeam?.name ?? ''} 選手別の得点（ゾーン別）`} rows={scorerRows(opponentScorers(data), oppTeam)} fileName={fileName('相手得点')} />
+          <StatTable title="相手サーバー別のレシーブ成績" rows={serverRows(receptionByOpponentServer(data), oppTeam)} fileName={fileName('相手サーバー別')} />
         </>
       )}
     </div>
