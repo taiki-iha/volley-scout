@@ -13,7 +13,7 @@ function start(firstServe: Side, set = 1, idp = 'm'): MatchEvent {
 }
 function rally(play: PlayKind, side: Side | null, player: number | null, pointTo: Side, o: { zone?: Zone | null; blocker?: number | null; set?: number; idp?: string } = {}): MatchEvent {
   n++;
-  return { id: `${o.idp ?? 'm'}r${n}`, seq: n, set: o.set ?? 1, at: n, t: 'rally', side, player, play, zone: o.zone ?? null, blocker: o.blocker ?? null, pointTo };
+  return { id: `${o.idp ?? 'm'}r${n}`, seq: n, set: o.set ?? 1, at: n, t: 'rally', side, player, play, zone: o.zone ?? null, land: null, blocker: o.blocker ?? null, pointTo };
 }
 function attempt(side: Side, player: number, set = 1): MatchEvent {
   n++;
@@ -38,8 +38,24 @@ describe('playerStats', () => {
     expect(p.spike.blocked).toBe(1);
     expect(p.spike.killRate).toBeCloseTo(2 / 9);
     expect(p.spike.efficiency).toBeCloseTo(0);
-    expect(p.spike.killsByZone[4]).toBe(2);
-    expect(p.spike.killsByZone[1]).toBe(0);
+    // 1本目は #4 がポジション4（レフト）。自チームのサイドアウトでローテして、2本目はポジション3（センター）
+    expect(p.spike.killsByHit).toEqual({ left: 1, center: 1, right: 0, back: 0 });
+  });
+
+  it('打った位置別の決定: そのラリー時点のローテの位置（前衛 4/3/2、後衛はバック）', () => {
+    // 自チーム [1,2,3,4,5,6]。相手サーブで開始 → 自チームが取るとローテして [2,3,4,5,6,1]
+    const ev: MatchEvent[] = [start('them')];
+    ev.push(rally('spike_kill', 'us', 3, 'us'));   // ローテ前: #3 はポジション3 = センター
+    ev.push(rally('spike_kill', 'us', 3, 'us'));   // ローテ後: #3 はポジション2 = ライト
+    ev.push(rally('spike_kill', 'us', 1, 'us'));   // ローテ後: #1 はポジション6 = バック
+    ev.push(rally('spike_kill', 'us', 9, 'us'));   // コートにいない番号は位置なし
+    ev.push(rally('spike_kill', 'them', 14, 'them'));  // 相手 [11..16] の #14 はポジション4 = レフト
+    const r = one(ev);
+    expect(find(r, 'us', 3).spike.killsByHit).toEqual({ left: 0, center: 1, right: 1, back: 0 });
+    expect(find(r, 'us', 1).spike.killsByHit.back).toBe(1);
+    expect(find(r, 'us', 9).spike.kills).toBe(1);
+    expect(find(r, 'us', 9).spike.killsByHit).toEqual({ left: 0, center: 0, right: 0, back: 0 });
+    expect(find(r, 'them', 14).spike.killsByHit.left).toBe(1);
   });
 
   it('スパイクなしは null', () => {

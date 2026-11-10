@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import type { Lineup, Side } from '../../core/types';
+import { fromScreen, toScreen, zoneCenter } from '../../core/court';
+import type { LandPoint, Lineup, Side, Zone } from '../../core/types';
 import { SIDE_LABEL, courtChange, type CourtSnap, type Sel } from '../live.logic';
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
   bad: Set<number>;           // 調子の悪い選手（自チームのみ）
   selected: Sel | null;
   onTap?: (no: number) => void;  // 閲覧モードでは無し
+  onLand?: (p: LandPoint) => void;  // 落ちた場所をこのコートでタップする段階のときだけ（守る側のチーム座標で返す）
 }
 
 // ネットが中央。左=相手（ネットは右側）、右=自チーム（ネットは左側）。
@@ -34,7 +36,7 @@ const reducedMotion = (): boolean =>
 
 type Pos = { x: number; y: number };
 
-export function Court({ side, set, lineup, rotations, serving, setter, liberos, roleOf, bad, selected, onTap }: Props) {
+export function Court({ side, set, lineup, rotations, serving, setter, liberos, roleOf, bad, selected, onTap, onLand }: Props) {
   // 選手の丸は背番号を key にする（ローテで同じ DOM 要素が別のマスへ移る → 位置の変化を測って動かす = FLIP）
   const grid = useRef<HTMLDivElement>(null);
   const players = (): [number, HTMLElement][] =>
@@ -99,7 +101,7 @@ export function Court({ side, set, lineup, rotations, serving, setter, liberos, 
   useEffect(() => () => { timers.current.forEach((t) => clearTimeout(t)); }, []);
 
   return (
-    <div class={`court court-${side}`}>
+    <div class={`court court-${side}${onLand ? ' landing' : ''}`}>
       <div class="court-label">{SIDE_LABEL[side]}</div>
       {flash && (
         <>
@@ -129,7 +131,36 @@ export function Court({ side, set, lineup, rotations, serving, setter, liberos, 
             </button>
           );
         })}
+        {onLand && <LandPad side={side} onLand={onLand} />}
       </div>
     </div>
+  );
+}
+
+const ZONES: Zone[] = [1, 2, 3, 4, 5, 6];
+
+/**
+ * 落ちた場所のタップ面。コート（選手の並ぶ枠）全体を覆い、アタックライン（ネットから 3m）とゾーンの区切り・番号を描く。
+ * タップした点を画面座標 → 守る側のチーム座標にして返す。
+ */
+function LandPad({ side, onLand }: { side: Side; onLand: (p: LandPoint) => void }) {
+  const attackU = toScreen(side, { x: 0.5, y: 1 / 3 }).u * 100;
+  const tap = (e: MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    onLand(fromScreen(side, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height));
+  };
+  return (
+    <button class="land-pad" onClick={tap} aria-label={`${SIDE_LABEL[side]}コートの落ちた場所をタップ`}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <line x1={attackU} y1="0" x2={attackU} y2="100" class="lp-attack" />
+        <line x1="0" y1={100 / 3} x2="100" y2={100 / 3} class="lp-lane" />
+        <line x1="0" y1={200 / 3} x2="100" y2={200 / 3} class="lp-lane" />
+      </svg>
+      {ZONES.map((z) => {
+        const c = toScreen(side, zoneCenter(z));
+        return <span key={z} class="lp-zone" style={{ left: `${c.u * 100}%`, top: `${c.v * 100}%` }} aria-hidden="true">{z}</span>;
+      })}
+    </button>
   );
 }

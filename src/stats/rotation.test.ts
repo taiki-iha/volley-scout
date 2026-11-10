@@ -12,7 +12,7 @@ const start = (firstServe: Side): MatchEvent => {
 };
 const rally = (play: PlayKind, side: Side | null, player: number | null, pointTo: Side): MatchEvent => {
   n++;
-  return { id: `r${n}`, seq: n, set: 1, at: n, t: 'rally', side, player, play, zone: null, blocker: null, pointTo };
+  return { id: `r${n}`, seq: n, set: 1, at: n, t: 'rally', side, player, play, zone: null, land: null, blocker: null, pointTo };
 };
 
 describe('rotationStats', () => {

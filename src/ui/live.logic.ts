@@ -1,10 +1,11 @@
 // 試合中の入力画面（Live / SetStart / MatchSetup / SubDialog）の判断ロジック。画面から切り出してテストする。
 import { badCondition } from '../core/condition';
+import { landZone } from '../core/court';
 import type { MatchState } from '../core/replay';
 import { isFrontRow, server, setterRotation } from '../core/rotation';
 import { pointWinner } from '../core/rules';
 import type {
-  ConditionThresholds, Lineup, MatchConfig, MatchEvent, OpponentPlayer, OpponentTeam, PlayKind, Player, Position, Side, Zone,
+  ConditionThresholds, LandPoint, Lineup, MatchConfig, MatchEvent, OpponentPlayer, OpponentTeam, PlayKind, Player, Position, Side, Zone,
 } from '../core/types';
 import type { NewEvent } from '../data/store';
 import { playerStats } from '../stats/player';
@@ -36,28 +37,36 @@ export const ROLE_SHORT: Record<Position, string> = { S: 'S', OH: 'OH', MB: 'MB'
 export type RallyNewEvent = Extract<NewEvent, { t: 'rally' }>;
 export type AttemptNewEvent = Extract<NewEvent, { t: 'attempt' }>;
 
-export function needsZone(play: PlayKind | 'attempt'): boolean {
-  return play === 'spike_kill' || play === 'spike_error' || play === 'spike_blocked' || play === 'attempt';
+/** 落ちた場所（守る側のコートをタップ）を記録するプレー = スパイク決定とサービスエースだけ */
+export function needsLand(play: PlayKind | 'attempt'): boolean {
+  return play === 'spike_kill' || play === 'serve_ace';
 }
 
+/**
+ * rally イベントを作る。land（守る側コートの落下点）は needsLand のプレーだけ保存し、zone は land から求める（不明なら両方 null）。
+ */
 export function buildRallyEvent(
-  set: number, sel: { side: Side; player: number } | null, play: PlayKind, zone: Zone | null, blocker: number | null,
+  set: number, sel: { side: Side; player: number } | null, play: PlayKind, land: LandPoint | null, blocker: number | null,
   noPlayerPointTo?: Side,
 ): RallyNewEvent {
   if (sel === null) {
     if (noPlayerPointTo === undefined) throw new Error('buildRallyEvent: 選手なしのときは noPlayerPointTo が必要です');
-    return { t: 'rally', set, side: null, player: null, play, zone: null, blocker: null, pointTo: noPlayerPointTo };
+    return { t: 'rally', set, side: null, player: null, play, zone: null, land: null, blocker: null, pointTo: noPlayerPointTo };
   }
+  const r3 = (n: number) => Math.round(n * 1000) / 1000;   // 保存は小数3桁（9m コートで約1cm）
+  const l = needsLand(play) && land ? { x: r3(land.x), y: r3(land.y) } : null;
+  const zone: Zone | null = l ? landZone(l) : null;
   return {
     t: 'rally', set, side: sel.side, player: sel.player, play,
-    zone: needsZone(play) ? zone : null,
+    zone, land: l,
     blocker: play === 'spike_blocked' ? blocker : null,
     pointTo: pointWinner(sel.side, play),
   };
 }
 
-export function buildAttemptEvent(set: number, side: Side, player: number, zone: Zone | null): AttemptNewEvent {
-  return { t: 'attempt', set, side, player, zone };
+/** スパイク（継続）。zone は使わない（null で記録） */
+export function buildAttemptEvent(set: number, side: Side, player: number): AttemptNewEvent {
+  return { t: 'attempt', set, side, player, zone: null };
 }
 
 /** 選んだ選手が、今サーブ権を持つ側のサーバー（ポジション1）か */
@@ -80,14 +89,15 @@ export function showBlockHint(sel: Sel, lineups: Record<Side, Lineup>): boolean 
   return sel.side === 'them' && isFrontRow(lineups.them, sel.player);
 }
 
-// ---------- 入力の段階（選手 → プレー → ゾーン → ブロッカー） ----------
+// ---------- 入力の段階（選手 → プレー → 落ちた場所 ／ ブロッカー） ----------
 
 export type Sel = { side: Side; player: number };
+export type LandPlay = 'spike_kill' | 'serve_ace';
 export type Step =
   | { k: 'idle' }
   | { k: 'play'; sel: Sel }
-  | { k: 'zone'; sel: Sel; play: PlayKind | 'attempt' }
-  | { k: 'blocker'; sel: Sel; zone: Zone | null };
+  | { k: 'land'; sel: Sel; play: LandPlay }   // 守る側（other(sel.side)）のコートをタップ
+  | { k: 'blocker'; sel: Sel };
 export interface StepResult { step: Step; event?: NewEvent }
 
 export const IDLE: Step = { k: 'idle' };
@@ -95,22 +105,26 @@ export const IDLE: Step = { k: 'idle' };
 export function choosePlay(step: Step, play: PlayKind | 'attempt', set: number): StepResult {
   if (step.k === 'idle') return { step };
   const sel = step.sel;
-  if (needsZone(play)) return { step: { k: 'zone', sel, play } };
-  // needsZone が false なのは 'attempt' 以外
-  return { step: IDLE, event: buildRallyEvent(set, sel, play as PlayKind, null, null) };
+  if (play === 'spike_kill' || play === 'serve_ace') return { step: { k: 'land', sel, play } };
+  if (play === 'spike_blocked') return { step: { k: 'blocker', sel } };
+  if (play === 'attempt') return { step: IDLE, event: buildAttemptEvent(set, sel.side, sel.player) };
+  return { step: IDLE, event: buildRallyEvent(set, sel, play, null, null) };
 }
 
-export function chooseZone(step: Step, zone: Zone | null, set: number): StepResult {
-  if (step.k !== 'zone') return { step };
-  const { sel, play } = step;
-  if (play === 'attempt') return { step: IDLE, event: buildAttemptEvent(set, sel.side, sel.player, zone) };
-  if (play === 'spike_blocked') return { step: { k: 'blocker', sel, zone } };
-  return { step: IDLE, event: buildRallyEvent(set, sel, play, zone, null) };
+/** 落ちた場所（守る側のチーム座標）。null = 場所不明 */
+export function chooseLand(step: Step, land: LandPoint | null, set: number): StepResult {
+  if (step.k !== 'land') return { step };
+  return { step: IDLE, event: buildRallyEvent(set, step.sel, step.play, land, null) };
+}
+
+/** 落ちた場所をタップするコート（守る側）。land の段階でなければ null */
+export function landSide(step: Step): Side | null {
+  return step.k === 'land' ? other(step.sel.side) : null;
 }
 
 export function chooseBlocker(step: Step, blocker: number | null, set: number): StepResult {
   if (step.k !== 'blocker') return { step };
-  return { step: IDLE, event: buildRallyEvent(set, step.sel, 'spike_blocked', step.zone, blocker) };
+  return { step: IDLE, event: buildRallyEvent(set, step.sel, 'spike_blocked', null, blocker) };
 }
 
 /** ブロッカー候補 = 打った側の相手チームの前衛（ポジション 4,3,2 の順） */

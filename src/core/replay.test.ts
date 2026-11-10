@@ -18,7 +18,7 @@ function start(seq: number, firstServe: Side, set = 1): MatchEvent {
   });
 }
 function rally(seq: number, pointTo: Side, set = 1): MatchEvent {
-  return ev(seq, { t: 'rally', set, side: null, player: null, play: 'other_point', zone: null, blocker: null, pointTo });
+  return ev(seq, { t: 'rally', set, side: null, player: null, play: 'other_point', zone: null, land: null, blocker: null, pointTo });
 }
 // us 25 - them 23 で終わる rally 列（最後の1本で終了）
 function to25_23(startSeq: number, set = 1): MatchEvent[] {

@@ -1,5 +1,5 @@
-import type { Lineup, PlayKind, Side, Zone } from '../../core/types';
-import { PLAY_LABEL, SIDE_LABEL, ZONE_GRID, availablePlays, blockerCandidates, isScoring, showBlockHint, type Step } from '../live.logic';
+import type { Lineup, PlayKind, Side } from '../../core/types';
+import { PLAY_LABEL, SIDE_LABEL, availablePlays, blockerCandidates, isScoring, other, showBlockHint, type Step } from '../live.logic';
 
 interface Props {
   step: Step;
@@ -7,13 +7,13 @@ interface Props {
   serving: Side;                          // サーブ権のある側（サーブ系のプレーはそのサーバーだけに出す）
   disabled: boolean;                      // セット終了後など
   onPlay: (p: PlayKind | 'attempt') => void;
-  onZone: (z: Zone | null) => void;
+  onLandUnknown: () => void;              // 落ちた場所の「場所不明」（場所はコートをタップ）
   onBlocker: (no: number | null) => void;
   onNoPlayer: (pointTo: Side) => void;
   onCancel: () => void;
 }
 
-export function PlayPanel({ step, lineups, serving, disabled, onPlay, onZone, onBlocker, onNoPlayer, onCancel }: Props) {
+export function PlayPanel({ step, lineups, serving, disabled, onPlay, onLandUnknown, onBlocker, onNoPlayer, onCancel }: Props) {
   let body;
   if (disabled) {
     body = <p class="muted">セットが終わっています</p>;
@@ -38,14 +38,15 @@ export function PlayPanel({ step, lineups, serving, disabled, onPlay, onZone, on
           </div>
         </>
       );
-    } else if (step.k === 'zone') {
+    } else if (step.k === 'land') {
+      const def = other(step.sel.side);
       body = (
         <>
-          <div class="pp-title"><b>{who}</b> {PLAY_LABEL[step.play]} → どこから？</div>
-          <div class="pp-zones">
-            {ZONE_GRID.map((z) => <button key={z} class="zone" onClick={() => onZone(z)}>{z}</button>)}
-          </div>
-          <button class="pp-b neutral wide" onClick={() => onZone(null)}>ゾーン不明</button>
+          <div class="pp-title"><b>{who}</b> {PLAY_LABEL[step.play]} → 落ちた場所は？</div>
+          <p class="pp-land">
+            {def === 'them' ? '◀ 左の相手コート' : '右の自チームコート ▶'}の<br />落ちた場所をタップ
+          </p>
+          <button class="pp-b neutral wide" onClick={onLandUnknown}>場所不明</button>
         </>
       );
     } else {

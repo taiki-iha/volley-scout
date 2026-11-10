@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { MatchEvent, Reception } from '../core/types';
 import type { ReceptionRow } from '../stats/opponent';
-import { editContextLabel, editContexts, mergeRows, nextUngradedRowId, playChangePatch, playChoices, receiverCandidates } from './reception.logic';
+import { editContextLabel, editContexts, hitLabel, landZonePatch, mergeRows, nextUngradedRowId, playChangePatch, playChoices, receiverCandidates } from './reception.logic';
 
 const row = (id: string, preset: ReceptionRow['preset'] = null): ReceptionRow => ({
   rallyId: id, set: 1, scoreBefore: { us: 0, them: 0 }, server: 3, usRotation: 1, preset,
@@ -37,10 +37,29 @@ describe('reception.logic', () => {
     expect(c.find((x) => x.play === 'spike_error')?.allowed).toBe(false);
     expect(playChoices('spike_error').find((x) => x.play === 'other_error')?.allowed).toBe(true);
   });
-  it('playChangePatch: 不要なゾーン・ブロッカーを消す', () => {
-    const cur = { t: 'rally', play: 'spike_blocked', zone: 4, blocker: 6 } as Extract<MatchEvent, { t: 'rally' }>;
+  it('playChangePatch: 不要な落下ゾーン・落下点・ブロッカーを消す', () => {
+    const cur = { t: 'rally', play: 'spike_blocked', zone: null, land: null, blocker: 6 } as Extract<MatchEvent, { t: 'rally' }>;
     expect(playChangePatch(cur, 'spike_error')).toEqual({ play: 'spike_error', blocker: null });
-    expect(playChangePatch(cur, 'other_error')).toEqual({ play: 'other_error', zone: null, blocker: null });
+    const kill = { t: 'rally', play: 'spike_kill', zone: 4, land: { x: 0.1, y: 0.2 }, blocker: null } as Extract<MatchEvent, { t: 'rally' }>;
+    // スパイク決定 ↔ サービスエースは落下点を残す
+    expect(playChangePatch(kill, 'serve_ace')).toEqual({ play: 'serve_ace' });
+    expect(playChangePatch(kill, 'block_point')).toEqual({ play: 'block_point', zone: null, land: null });
+    // 旧データ（land なし）でも落とさない
+    const old = { t: 'rally', play: 'spike_kill', zone: 4, blocker: null } as unknown as Extract<MatchEvent, { t: 'rally' }>;
+    expect(playChangePatch(old, 'other_point')).toEqual({ play: 'other_point', zone: null });
+  });
+  it('落下ゾーンを選び直すと落下点は消す', () => {
+    expect(landZonePatch(2)).toEqual({ zone: 2, land: null });
+    expect(landZonePatch(null)).toEqual({ zone: null, land: null });
+  });
+  it('打った位置の表示: スパイク系だけ、その時の並びから', () => {
+    const lineup = [1, 2, 3, 4, 5, 6];
+    expect(hitLabel('spike_kill', lineup, 4)).toBe('レフト');
+    expect(hitLabel('spike_blocked', lineup, 2)).toBe('ライト');
+    expect(hitLabel('spike_error', lineup, 6)).toBe('バック');
+    expect(hitLabel('serve_ace', lineup, 1)).toBeNull();
+    expect(hitLabel('spike_kill', lineup, 9)).toBeNull();
+    expect(hitLabel('spike_kill', undefined, 4)).toBeNull();
   });
 });
 
@@ -49,9 +68,9 @@ describe('editContexts（記録の修正画面の点数・サーバー）', () =
   let n = 0;
   const ev = (e: Record<string, unknown>): MatchEvent => { n++; return { id: `e${String(n).padStart(3, '0')}`, seq: n, at: n, set: 1, ...e } as MatchEvent; };
   const start = ev({ t: 'set_start', lineups: { us: [1, 2, 3, 4, 5, 6], them: [11, 12, 13, 14, 15, 16] }, setters: { us: 2, them: 11 }, liberos: { us: [], them: [] }, firstServe: 'us' });
-  const r1 = ev({ t: 'rally', side: 'us', player: 1, play: 'serve_ace', zone: null, blocker: null, pointTo: 'us' });
+  const r1 = ev({ t: 'rally', side: 'us', player: 1, play: 'serve_ace', zone: null, land: null, blocker: null, pointTo: 'us' });
   const a1 = ev({ t: 'attempt', side: 'us', player: 4, zone: 4 });
-  const r2 = ev({ t: 'rally', side: 'them', player: 14, play: 'spike_kill', zone: 4, blocker: null, pointTo: 'them' });
+  const r2 = ev({ t: 'rally', side: 'them', player: 14, play: 'spike_kill', zone: 4, land: null, blocker: null, pointTo: 'them' });
   const a2 = ev({ t: 'attempt', side: 'us', player: 3, zone: 3 });
   const events = [start, r1, a1, r2, a2];
 

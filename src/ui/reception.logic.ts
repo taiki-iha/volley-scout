@@ -1,9 +1,10 @@
 // 試合後のレシーブ入力・記録修正画面の判断ロジック（画面から切り出してテストする）
 import { replay } from '../core/replay';
+import { HIT_LABEL, hitPosition } from '../core/court';
 import { server } from '../core/rotation';
-import type { Grade, Lineup, MatchConfig, MatchEvent, PlayKind, Reception, Side } from '../core/types';
+import type { Grade, Lineup, MatchConfig, MatchEvent, PlayKind, Reception, Side, Zone } from '../core/types';
 import type { ReceptionRow } from '../stats/opponent';
-import { PLAY_ORDER, SIDE_LABEL, isScoring } from './live.logic';
+import { PLAY_ORDER, SIDE_LABEL, isScoring, needsLand } from './live.logic';
 
 export const GRADES: Grade[] = ['A', 'B', 'C', 'D'];
 export const GRADE_DEFS: Record<Grade, string> = {
@@ -49,17 +50,36 @@ export function playChoices(cur: PlayKind): { play: PlayKind; allowed: boolean }
 
 type Rally = Extract<MatchEvent, { t: 'rally' }>;
 
-const needsZone = (p: PlayKind) => p === 'spike_kill' || p === 'spike_error' || p === 'spike_blocked';
+type RallyEditPatch = Partial<Pick<Rally, 'play' | 'zone' | 'land' | 'blocker'>>;
 
-/** プレー変更時に、不要になるゾーン・ブロッカーを消すパッチを作る */
-export function playChangePatch(cur: Rally, play: PlayKind): Partial<Pick<Rally, 'play' | 'zone' | 'blocker'>> {
-  const patch: Partial<Pick<Rally, 'play' | 'zone' | 'blocker'>> = { play };
-  if (!needsZone(play) && cur.zone !== null) patch.zone = null;
+/**
+ * プレー変更時に、不要になる落下ゾーン・落下点・ブロッカーを消すパッチを作る。
+ * スパイク決定 ↔ サービスエースは、どちらも守る側コートの落下点なのでそのまま残す。
+ */
+export function playChangePatch(cur: Rally, play: PlayKind): RallyEditPatch {
+  const patch: RallyEditPatch = { play };
+  if (!needsLand(play)) {
+    if (cur.zone !== null) patch.zone = null;
+    if ((cur.land ?? null) !== null) patch.land = null;
+  }
   if (play !== 'spike_blocked' && cur.blocker !== null) patch.blocker = null;
   return patch;
 }
 
-export { needsZone };
+/** 修正画面で落下ゾーンを選び直したときのパッチ（タップした落下点は合わなくなるので消す） */
+export function landZonePatch(zone: Zone | null): Pick<Rally, 'zone' | 'land'> {
+  return { zone, land: null };
+}
+
+/** 修正画面に出す「打った位置」（そのラリー時点の並びから。スパイク系のプレーで、コートにいる選手のときだけ） */
+export function hitLabel(play: PlayKind, lineup: readonly number[] | undefined, player: number | null): string | null {
+  if (play !== 'spike_kill' && play !== 'spike_error' && play !== 'spike_blocked') return null;
+  if (!lineup || player === null) return null;
+  const h = hitPosition(lineup, player);
+  return h === null ? null : HIT_LABEL[h];
+}
+
+export { needsLand };
 
 /** 修正画面の各行に出す「そのラリーの前の」セット・点数・サーバー（動画と照らし合わせるため） */
 export interface EditContext { set: number; score: Record<Side, number>; serving: Side; server: number }

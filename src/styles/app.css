@@ -268,3 +268,37 @@ html, body { overflow-x: hidden; }
 @keyframes rot-badge { 0% { opacity: 0; } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 .pl.entered { animation: pl-entered 1.2s ease-out; }
 @keyframes pl-entered { 0%, 40% { box-shadow: 0 0 0 5px #2ecc71, 0 0 14px 4px rgba(46, 204, 113, 0.8); } 100% { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); } }
+
+/* ---------- 落ちた場所のタップ（スパイク決定・サービスエース） ---------- */
+.court-grid { position: relative; }
+.land-pad { position: absolute; inset: 0; z-index: 4; padding: 0; margin: 0; min-height: 0; border: 3px solid #2e86de; border-radius: 4px;
+  background: rgba(226, 239, 252, 0.86); cursor: crosshair; animation: land-pulse 1.2s ease-in-out infinite alternate; touch-action: manipulation; }
+.land-pad:active { background: rgba(206, 226, 250, 0.9); }
+.land-pad svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.lp-attack { stroke: #1f5fa8; stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.lp-lane { stroke: rgba(31, 95, 168, 0.55); stroke-width: 1.5px; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }
+.lp-zone { position: absolute; transform: translate(-50%, -50%); font-size: 26px; font-weight: 800; color: rgba(31, 95, 168, 0.45); pointer-events: none; }
+@keyframes land-pulse { from { box-shadow: 0 0 0 0 rgba(46, 134, 222, 0.6); } to { box-shadow: 0 0 0 6px rgba(46, 134, 222, 0.15); } }
+@media (prefers-reduced-motion: reduce) { .land-pad { animation: none; } }
+/* タップ中は選手の丸を隠し、ゾーンの区切りと番号だけを見せる（場所は保ったまま） */
+.court.landing .pl { visibility: hidden; }
+.pp-land { text-align: center; font-size: 18px; font-weight: 700; color: #2e86de; margin: 14px 0; line-height: 1.5; }
+.edit-hit { font-size: 15px; color: var(--muted); white-space: nowrap; }
+
+/* 分析: コース図 */
+.course-ctl { align-items: flex-end; gap: 16px; }
+.course-ctl .field { margin-bottom: 0; min-width: 200px; }
+.course-svg { width: 100%; max-width: 760px; display: block; margin: 8px auto 0; }
+.cs-def { fill: #fff3df; stroke: #8a6a2f; stroke-width: 0.08; }
+.cs-att { fill: #f3f4f7; stroke: #b9bfcc; stroke-width: 0.06; }
+.cs-attack { stroke: #8a6a2f; stroke-width: 0.05; }
+.cs-lane { stroke: #c9a66b; stroke-width: 0.04; stroke-dasharray: 0.25 0.2; }
+.cs-zone { font-size: 1.1px; fill: #c9a66b; text-anchor: middle; dominant-baseline: central; font-weight: 700; }
+.cs-net { stroke: #333; stroke-width: 0.16; }
+.cs-label { font-size: 0.55px; fill: var(--muted); text-anchor: middle; }
+.cs-arrow { stroke-width: 0.07; opacity: 0.75; }
+.cs-dot { stroke: #fff; stroke-width: 0.05; }
+.course-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; margin-top: 8px; align-items: center; }
+.course-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw.ace { background: #c0392b; transform: rotate(45deg) scale(0.8); }
+.an-note { font-size: 14px; margin: -8px 0 0; }

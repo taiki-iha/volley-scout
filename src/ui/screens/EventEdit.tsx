@@ -6,7 +6,7 @@ import type { EventPatch } from '../../data/store';
 import { PLAY_LABEL, SIDE_LABEL, other } from '../live.logic';
 import { report } from '../notify';
 import { navigate } from '../router';
-import { editContextLabel, editContexts, needsZone, playChangePatch, playChoices } from '../reception.logic';
+import { editContextLabel, editContexts, hitLabel, landZonePatch, needsLand, playChangePatch, playChoices } from '../reception.logic';
 
 const ZONES: Zone[] = [1, 2, 3, 4, 5, 6];
 type Editable = Extract<MatchEvent, { t: 'rally' | 'attempt' }>;
@@ -52,19 +52,28 @@ export function EventEdit({ id }: { id: string }) {
       </label>
     );
   };
-  const zoneSel = (e: Editable) => (
-    <label class="field">ゾーン
-      <select value={e.zone ?? ''} onChange={(ev) => { const v = ev.currentTarget.value; save(e.id, { zone: v === '' ? null : (Number(v) as Zone) }); }}>
-        <option value="">なし</option>
+  // 落下ゾーン（守る側コート）。選び直すとタップした落下点は消す
+  const zoneSel = (e: Extract<Editable, { t: 'rally' }>) => (
+    <label class="field">落下ゾーン
+      <select value={e.zone ?? ''} onChange={(ev) => {
+        const v = ev.currentTarget.value;
+        const z = v === '' ? null : (Number(v) as Zone);
+        if (z !== e.zone) save(e.id, landZonePatch(z));
+      }}>
+        <option value="">不明</option>
         {ZONES.map((z) => <option key={z} value={z}>{z}</option>)}
       </select>
     </label>
   );
+  const hit = (e: Extract<Editable, { t: 'rally' }>) => {
+    const h = e.side ? hitLabel(e.play, lineups.get(e.id)?.[e.side], e.player) : null;
+    return h && <span class="edit-hit">打った位置: <b>{h}</b></span>;
+  };
 
   return (
     <div class="screen wide">
       <div class="row"><h1 class="grow">記録の修正</h1><button onClick={() => navigate(`/match/${encodeURIComponent(id)}/reception`)}>レシーブ入力へ</button></div>
-      <p class="muted">変更はすぐに保存されます。得点とミスを入れ替える修正（点数が変わるもの）は選べません。点数はそのラリーの前の点数（自チーム-相手）です。</p>
+      <p class="muted">変更はすぐに保存されます。得点とミスを入れ替える修正（点数が変わるもの）は選べません。点数はそのラリーの前の点数（自チーム-相手）です。落下ゾーンを選び直すと、試合中にタップした落下点は消えます。打った位置は選手とその時のローテから自動で決まります。</p>
       {list.length === 0 && <p class="muted">修正できる記録がありません</p>}
       <ul class="list">
         {list.map((e, i) => (
@@ -84,7 +93,8 @@ export function EventEdit({ id }: { id: string }) {
                     {playChoices(e.play).map((c) => <option key={c.play} value={c.play} disabled={!c.allowed}>{PLAY_LABEL[c.play]}</option>)}
                   </select>
                 </label>
-                {needsZone(e.play) && zoneSel(e)}
+                {needsLand(e.play) && zoneSel(e)}
+                {hit(e)}
                 {e.play === 'spike_blocked' && e.side && (
                   <label class="field">ブロッカー
                     <select value={e.blocker ?? ''} onChange={(ev) => { const v = ev.currentTarget.value; save(e.id, { blocker: v === '' ? null : Number(v) }); }}>
@@ -97,7 +107,6 @@ export function EventEdit({ id }: { id: string }) {
             ) : (
               <>
                 <span>{PLAY_LABEL.attempt}</span>
-                {zoneSel(e)}
               </>
             )}
           </li>

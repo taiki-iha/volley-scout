@@ -7,7 +7,7 @@ export interface Settings { thresholds: ConditionThresholds; }
 export type NewEvent = DistributiveOmit<MatchEvent, 'id' | 'seq' | 'at'>;
 export type RallyEvent = Extract<MatchEvent, { t: 'rally' }>;
 export type AttemptEvent = Extract<MatchEvent, { t: 'attempt' }>;
-export type RallyPatch = Partial<Pick<RallyEvent, 'player' | 'play' | 'zone' | 'blocker'>>;
+export type RallyPatch = Partial<Pick<RallyEvent, 'player' | 'play' | 'zone' | 'land' | 'blocker'>>;
 export type AttemptPatch = Partial<Pick<AttemptEvent, 'player' | 'zone'>>;
 export type EventPatch = RallyPatch | AttemptPatch;
 

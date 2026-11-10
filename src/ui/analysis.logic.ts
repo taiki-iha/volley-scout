@@ -1,5 +1,7 @@
+import { HIT_LABEL, HIT_POSITIONS, attackOrigin, toSvg, type HitPos } from '../core/court';
 import { setterRotation } from '../core/rotation';
-import type { Match, MatchEvent, OpponentTeam, Player, Zone } from '../core/types';
+import type { Match, MatchEvent, OpponentTeam, Player, Side, Zone } from '../core/types';
+import type { CourseMark } from '../stats/course';
 import type { OpponentScorer, ServerReception } from '../stats/opponent';
 import type { PlayerStats } from '../stats/player';
 import type { RotationStats } from '../stats/rotation';
@@ -57,13 +59,18 @@ export function playerRows(stats: PlayerStats[], players: Player[]): CsvRow[] {
     選手: playerLabel(s.no, players),
     スパイク本数: s.spike.attempts, 決定: s.spike.kills, ミス: s.spike.errors, ブロックされ: s.spike.blocked,
     決定率: fmtPct(s.spike.killRate), 効果率: fmtPct(s.spike.efficiency),
-    // ゾーン別の決定数（相手得点の表と同じくゾーンごとに1列。サーブの列と紛れないよう「決定」を付ける）
-    ...Object.fromEntries(ZONES.map((z) => [`決定ゾーン${z}`, s.spike.killsByZone[z]])),
+    // 打った位置別の決定数（そのラリー時点のローテでの打った選手の位置。前衛 4/3/2 = レフト/センター/ライト、後衛 = バック）
+    ...hitColumns(s.spike.killsByHit),
     サーブ本数: s.serve.total, エース: s.serve.aces, サーブミス: s.serve.errors, サーブミス率: fmtPct(s.serve.errorRate),
     ブロック得点: s.blockPoints,
     レシーブ本数: s.reception.total, A: s.reception.A, B: s.reception.B, C: s.reception.C, D: s.reception.D,
     返球率: fmtPct(s.reception.passRate), A率: fmtPct(s.reception.perfectRate),
   }));
+}
+
+/** 打った位置別の決定数の列（決定レフト・決定センター・決定ライト・決定バック） */
+function hitColumns(by: Record<HitPos, number>): CsvRow {
+  return Object.fromEntries(HIT_POSITIONS.map((h) => [`決定${HIT_LABEL[h]}`, by[h]]));
 }
 
 export function rotationRows(stats: RotationStats[]): CsvRow[] {
@@ -76,8 +83,9 @@ export function rotationRows(stats: RotationStats[]): CsvRow[] {
 
 export function scorerRows(scorers: OpponentScorer[], team: OpponentTeam | undefined): CsvRow[] {
   return scorers.map((s) => {
-    const row: CsvRow = { 選手: opponentLabel(s.no, team), 得点: s.points };
-    for (const z of ZONES) row[`ゾーン${z}`] = s.byZone[z];
+    // 打った位置別（スパイク決定）と、落下ゾーン別（スパイク決定・サービスエース。自チームコートで守る側から見た番号）
+    const row: CsvRow = { 選手: opponentLabel(s.no, team), 得点: s.points, ...hitColumns(s.byHit) };
+    for (const z of ZONES) row[`落下ゾーン${z}`] = s.byLandZone[z];
     return row;
   });
 }
@@ -115,3 +123,34 @@ export function opponentLineupRows(items: { match: Match; events: MatchEvent[] }
   return rows;
 }
 
+
+// ---------- コース図 ----------
+
+/** 打った位置ごとの矢印の色（凡例と同じ）。位置不明は灰色 */
+export const HIT_COLOR: Record<HitPos | 'unknown', string> = {
+  left: '#2a6fdb', center: '#e67e22', right: '#8e44ad', back: '#16a085', unknown: '#7f8c8d',
+};
+
+/** SVG に描く1つの印。座標は m（core/court.ts toSvg: 相手コート x 0〜9、自チーム x 9〜18、画面と同じ向き） */
+export interface CourseShape {
+  kind: 'kill' | 'ace';
+  player: number;
+  to: { x: number; y: number };                 // 落下点
+  from: { x: number; y: number } | null;        // 矢印の始点（打った位置。不明・エースは null）
+  color: string;
+}
+
+/** コース図の印。player を指定するとその選手だけ。落下点は守る側（打った側の相手）のコートに描く */
+export function courseShapes(marks: CourseMark[], player: number | null): CourseShape[] {
+  return marks
+    .filter((m) => player === null || m.player === player)
+    .map((m) => {
+      const def: Side = m.side === 'us' ? 'them' : 'us';
+      return {
+        kind: m.kind, player: m.player,
+        to: toSvg(def, m.land),
+        from: m.kind === 'kill' && m.fromPos !== null ? toSvg(m.side, attackOrigin(m.fromPos)) : null,
+        color: m.kind === 'ace' ? '#c0392b' : HIT_COLOR[m.hit ?? 'unknown'],
+      };
+    });
+}

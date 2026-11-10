@@ -1,8 +1,17 @@
+import { hitPosition, type HitPos } from '../core/court';
 import { replay } from '../core/replay';
 import type { Grade, MatchConfig, MatchData, MatchEvent, PlayKind, Side, Zone } from '../core/types';
 import { ratio } from './player';
 
-export interface OpponentScorer { no: number; points: number; byZone: Record<Zone, number>; byPlay: Partial<Record<PlayKind, number>>; }
+/**
+ * 相手の得点者。byHit = スパイク決定の打った位置別（ラリー時点の並びから）、
+ * byLandZone = スパイク決定・サービスエースの落下ゾーン別（自チームコート、守る側から見た番号）。
+ */
+export interface OpponentScorer {
+  no: number; points: number;
+  byHit: Record<HitPos, number>; byLandZone: Record<Zone, number>;
+  byPlay: Partial<Record<PlayKind, number>>;
+}
 export interface ServerReception { server: number; total: number; A: number; B: number; C: number; D: number; passRate: number | null; }
 export interface ReceptionRow { rallyId: string; set: number; scoreBefore: Record<Side, number>; server: number; usRotation: number | null; preset: Grade | null; }
 
@@ -23,15 +32,22 @@ function validRallies(cfg: MatchConfig, events: MatchEvent[]) {
 export function opponentScorers(data: MatchData[]): OpponentScorer[] {
   const map = new Map<number, OpponentScorer>();
   for (const m of data) {
-    for (const { ev } of validRallies(m.cfg, m.events)) {
+    for (const { ctx, ev } of validRallies(m.cfg, m.events)) {
       if (ev.side !== 'them' || ev.pointTo !== 'them' || ev.player === null) continue;
       let s = map.get(ev.player);
       if (!s) {
-        s = { no: ev.player, points: 0, byZone: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }, byPlay: {} };
+        s = {
+          no: ev.player, points: 0,
+          byHit: { left: 0, center: 0, right: 0, back: 0 }, byLandZone: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }, byPlay: {},
+        };
         map.set(ev.player, s);
       }
       s.points++;
-      if (ev.zone !== null) s.byZone[ev.zone]++;
+      if (ev.play === 'spike_kill') {
+        const h = hitPosition(ctx.themLineup, ev.player);
+        if (h !== null) s.byHit[h]++;
+      }
+      if ((ev.play === 'spike_kill' || ev.play === 'serve_ace') && ev.zone !== null) s.byLandZone[ev.zone]++;
       s.byPlay[ev.play] = (s.byPlay[ev.play] ?? 0) + 1;
     }
   }

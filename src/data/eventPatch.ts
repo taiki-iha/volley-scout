@@ -48,14 +48,14 @@ export function lastEvent(list: readonly MatchEvent[]): MatchEvent | null {
 
 /**
  * updateEvent の修正内容を検証して適用した新しいイベントを返す。
- * - rally: player/play/zone/blocker のみ。得点↔ミスが入れ替わる play 変更は不可。pointTo は不変。
+ * - rally: player/play/zone/land/blocker のみ。得点↔ミスが入れ替わる play 変更は不可。pointTo は不変。
  * - attempt: player/zone のみ。
  * - それ以外の種類は修正不可。undefined の値は無視する。
  */
 export function applyEventPatch(cur: MatchEvent, patch: EventPatch): MatchEvent {
   const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Record<string, unknown>;
   if (cur.t === 'rally') {
-    const allowed = ['player', 'play', 'zone', 'blocker'];
+    const allowed = ['player', 'play', 'zone', 'land', 'blocker'];
     if (Object.keys(clean).some((k) => !allowed.includes(k))) throw new Error('この項目は修正できません');
     const play = clean.play as PlayKind | undefined;
     if (play !== undefined && isScoring(play) !== isScoring(cur.play)) throw new Error('点数が変わる修正はできません');

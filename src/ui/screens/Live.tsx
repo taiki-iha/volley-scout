@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { DEFAULT_THRESHOLDS } from '../../core/condition';
 import { replay } from '../../core/replay';
-import type { Match, MatchEvent, OpponentTeam, Player, Side } from '../../core/types';
+import type { LandPoint, Match, MatchEvent, OpponentTeam, Player, Side } from '../../core/types';
 import type { Settings } from '../../data/store';
 import { useStore, useWatch } from '../../data/StoreContext';
 import { ConditionList } from '../components/ConditionList';
@@ -10,7 +10,7 @@ import { PlayPanel } from '../components/PlayPanel';
 import { Scoreboard } from '../components/Scoreboard';
 import { SubDialog } from '../components/SubDialog';
 import {
-  IDLE, SIDE_LABEL, buildRallyEvent, buildTimeoutEvent, canStartSet, chooseBlocker, choosePlay, chooseZone, conditionRows,
+  IDLE, SIDE_LABEL, buildRallyEvent, buildTimeoutEvent, canStartSet, chooseBlocker, chooseLand, choosePlay, conditionRows, landSide,
   nextSetNeeded, nextSetNo, type Step, type StepResult,
 } from '../live.logic';
 import { report } from '../notify';
@@ -96,6 +96,10 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
     setStep(step.k !== 'idle' && step.sel.side === side && step.sel.player === no ? IDLE : { k: 'play', sel: { side, player: no } });
   };
   const sel = step.k === 'idle' ? null : step.sel;
+  // スパイク決定・サービスエースの落ちた場所は、守る側のコートを直接タップする
+  const landOn = (side: Side) => (!readonly && !cur.over && landSide(step) === side
+    ? (p: LandPoint) => apply(chooseLand(step, p, cur.set))
+    : undefined);
 
   const setEnd = cur.over && (
     <div class="panel-box set-end">
@@ -124,11 +128,11 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
           <div class="courts">
             <Court side="them" set={cur.set} rotations={cur.rotations.them} lineup={cur.lineups.them} serving={cur.serving === 'them'} setter={cur.setters.them}
               liberos={cur.liberos.them} roleOf={roleOf('them')} bad={new Set()} selected={sel}
-              onTap={readonly ? undefined : tap('them')} />
+              onTap={readonly ? undefined : tap('them')} onLand={landOn('them')} />
             <div class="net" />
             <Court side="us" set={cur.set} rotations={cur.rotations.us} lineup={cur.lineups.us} serving={cur.serving === 'us'} setter={cur.setters.us}
               liberos={cur.liberos.us} roleOf={roleOf('us')} bad={bad} selected={sel}
-              onTap={readonly ? undefined : tap('us')} />
+              onTap={readonly ? undefined : tap('us')} onLand={landOn('us')} />
           </div>
           {state.warnings.length > 0 && (
             <div class="warnings" role="status">{state.warnings.map((w) => <div key={w}>⚠ {w}</div>)}</div>
@@ -141,7 +145,7 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
             {setEnd}
             <PlayPanel step={step} lineups={cur.lineups} serving={cur.serving} disabled={cur.over}
               onPlay={(p) => apply(choosePlay(step, p, cur.set))}
-              onZone={(z) => apply(chooseZone(step, z, cur.set))}
+              onLandUnknown={() => apply(chooseLand(step, null, cur.set))}
               onBlocker={(b) => apply(chooseBlocker(step, b, cur.set))}
               onNoPlayer={(to) => apply({ step: IDLE, event: buildRallyEvent(cur.set, null, to === 'us' ? 'other_point' : 'other_error', null, null, to) })}
               onCancel={() => setStep(IDLE)} />

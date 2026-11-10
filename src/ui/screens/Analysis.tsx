@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { Match, MatchData, MatchEvent, OpponentTeam, Player, Reception } from '../../core/types';
 import { useStore, useWatch } from '../../data/StoreContext';
+import { courseMarks } from '../../stats/course';
 import { opponentScorers, receptionByOpponentServer } from '../../stats/opponent';
 import { playerStats } from '../../stats/player';
 import { rotationStats, unknownSetterRallies } from '../../stats/rotation';
 import {
-  KIND_LABEL, csvFileName, type CsvTable, filterMatches, opponentLineupRows, playerRows, rotationRows, scorerRows, serverRows, type KindFilter,
+  KIND_LABEL, csvFileName, type CsvTable, filterMatches, opponentLabel, opponentLineupRows, playerLabel, playerRows, rotationRows, scorerRows,
+  serverRows, type KindFilter,
 } from '../analysis.logic';
 import { BarChart } from '../components/BarChart';
+import { CourseChart } from '../components/CourseChart';
 import { StatTable } from '../components/StatTable';
 
 /** 選択した試合すべての events / receptions を購読する。全試合ぶん届くまで undefined */
@@ -119,12 +122,20 @@ export function Analysis() {
       {matches === undefined || players === undefined || teams === undefined || data === undefined ? (
         <p class="muted">読み込み中…</p>
       ) : tab === 'player' ? (
-        <StatTable title="選手別成績" rows={playerRows(playerStats(data), players)} fileName={fileName('選手別')} />
+        <>
+          <StatTable title="選手別成績" rows={playerRows(playerStats(data), players)} fileName={fileName('選手別')} />
+          <p class="muted an-note">決定レフト／センター／ライト／バック = スパイク決定を打った位置（そのラリーのローテで前衛 4・3・2、後衛ならバック）</p>
+          <CourseChart title="コース図（自チームのスパイク決定・サービスエース → 相手コート）" side="us"
+            marks={courseMarks(data, 'us')} labelOf={(no) => playerLabel(no, players)} />
+        </>
       ) : tab === 'rotation' ? (
         <RotationTab data={data} fileName={fileName('ローテ別')} />
       ) : (
         <>
-          <StatTable title={`${oppTeam?.name ?? ''} 選手別の得点（ゾーン別）`} rows={scorerRows(opponentScorers(data), oppTeam)} fileName={fileName('相手得点')} />
+          <StatTable title={`${oppTeam?.name ?? ''} 選手別の得点（打った位置別・落下ゾーン別）`} rows={scorerRows(opponentScorers(data), oppTeam)} fileName={fileName('相手得点')} />
+          <p class="muted an-note">決定レフト〜バック = スパイク決定を打った位置。落下ゾーン = スパイク決定・サービスエースが落ちた自チームコートのゾーン（自チームから見た番号）</p>
+          <CourseChart key={effOpp} title="コース図（相手のスパイク決定・サービスエース → 自チームコート）" side="them"
+            marks={courseMarks(data, 'them')} labelOf={(no) => opponentLabel(no, oppTeam)} />
           <StatTable title="相手サーバー別のレシーブ成績" rows={serverRows(receptionByOpponentServer(data), oppTeam)} fileName={fileName('相手サーバー別')} />
           <StatTable title="相手のスタメン配置とローテ（セット開始時）"
             rows={opponentLineupRows(target.map((m, i) => ({ match: m, events: data[i].events })), oppTeam)}

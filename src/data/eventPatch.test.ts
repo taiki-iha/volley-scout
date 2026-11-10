@@ -3,7 +3,7 @@ import type { MatchEvent } from '../core/types';
 import { applyEventPatch, buildNextEvent, cloudEventId, eventId, lastEvent, maxSeq, randomSuffix, sortEvents, sortOpponents } from './eventPatch';
 
 const rally = (seq: number): MatchEvent => ({
-  id: eventId(seq), seq, set: 1, at: 0, t: 'rally', side: 'us', player: 4, play: 'spike_kill', zone: 4, blocker: null, pointTo: 'us',
+  id: eventId(seq), seq, set: 1, at: 0, t: 'rally', side: 'us', player: 4, play: 'spike_kill', zone: 4, land: null, blocker: null, pointTo: 'us',
 });
 const attempt: MatchEvent = { id: eventId(2), seq: 2, set: 1, at: 0, t: 'attempt', side: 'us', player: 4, zone: 3 };
 const timeout: MatchEvent = { id: eventId(3), seq: 3, set: 1, at: 0, t: 'timeout', side: 'us' };
@@ -44,6 +44,8 @@ describe('eventPatch', () => {
     expect(n).toMatchObject({ play: 'serve_ace', zone: 2, player: 4, pointTo: 'us' });
     expect(r).toMatchObject({ play: 'spike_kill', zone: 4 });
     expect(() => applyEventPatch(r, { pointTo: 'them' } as never)).toThrow('この項目は修正できません');
+    // 落下ゾーンを直すと落下点は消す（land も修正できる項目）
+    expect(applyEventPatch({ ...r, land: { x: 0.1, y: 0.1 } } as MatchEvent, { zone: 2, land: null })).toMatchObject({ zone: 2, land: null });
   });
 
   it('attempt は player/zone のみ、その他の種類は不可', () => {

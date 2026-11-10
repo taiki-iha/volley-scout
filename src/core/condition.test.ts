@@ -5,7 +5,7 @@ import type { PlayerStats } from '../stats/player';
 function stats(attempts: number, kills: number): PlayerStats {
   return {
     side: 'us', no: 4,
-    spike: { attempts, kills, errors: 0, blocked: 0, killRate: attempts ? kills / attempts : null, efficiency: attempts ? kills / attempts : null, killsByZone: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } },
+    spike: { attempts, kills, errors: 0, blocked: 0, killRate: attempts ? kills / attempts : null, efficiency: attempts ? kills / attempts : null, killsByHit: { left: 0, center: 0, right: 0, back: 0 } },
     serve: { total: 0, aces: 0, errors: 0, errorRate: null }, blockPoints: 0,
     reception: { total: 0, A: 0, B: 0, C: 0, D: 0, passRate: null, perfectRate: null },
   };

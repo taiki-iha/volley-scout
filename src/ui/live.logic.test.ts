@@ -5,7 +5,7 @@ import type { Lineup, MatchConfig, MatchEvent, Side } from '../core/types';
 import type { NewEvent } from '../data/store';
 import {
   IDLE, assignSlot, availablePlays, backRow, showBlockHint, benchOf, blockerCandidates, buildAttemptEvent, buildMatchConfig, buildRallyEvent, canStartSet,
-  chooseBlocker, choosePlay, chooseZone, conditionRows, courtChange, dropPlayer, initialDraft, liberoReplaced, needsZone, nextEmptySlot, nextSetNeeded,
+  chooseBlocker, chooseLand, choosePlay, conditionRows, courtChange, dropPlayer, initialDraft, landSide, liberoReplaced, needsLand, nextEmptySlot, nextSetNeeded,
   nextSetNo, rotationLabel, subOutCandidates, toggleLibero, validateSetStart, withOpponentNo, type SetStartDraft, type Step,
 } from './live.logic';
 
@@ -26,10 +26,17 @@ function points(set: number, side: Side, n: number): MatchEvent[] {
 }
 
 describe('buildRallyEvent', () => {
-  it('被ブロックは相手の得点でブロッカーを記録', () => {
-    expect(buildRallyEvent(1, { side: 'us', player: 4 }, 'spike_blocked', 4, 7)).toEqual({
-      t: 'rally', set: 1, side: 'us', player: 4, play: 'spike_blocked', zone: 4, blocker: 7, pointTo: 'them',
+  it('被ブロックは相手の得点でブロッカーを記録（落下点は持たない）', () => {
+    expect(buildRallyEvent(1, { side: 'us', player: 4 }, 'spike_blocked', { x: 0.5, y: 0.5 }, 7)).toEqual({
+      t: 'rally', set: 1, side: 'us', player: 4, play: 'spike_blocked', zone: null, land: null, blocker: 7, pointTo: 'them',
     });
+  });
+  it('スパイク決定・サービスエースは落下点と、そこから求めた落下ゾーンを記録', () => {
+    expect(buildRallyEvent(1, { side: 'us', player: 4 }, 'spike_kill', { x: 0.9, y: 0.1 }, null)).toEqual({
+      t: 'rally', set: 1, side: 'us', player: 4, play: 'spike_kill', zone: 2, land: { x: 0.9, y: 0.1 }, blocker: null, pointTo: 'us',
+    });
+    expect(buildRallyEvent(1, { side: 'them', player: 11 }, 'serve_ace', { x: 0.5, y: 0.9 }, null)).toMatchObject({ zone: 6, land: { x: 0.5, y: 0.9 }, pointTo: 'them' });
+    expect(buildRallyEvent(1, { side: 'us', player: 4 }, 'spike_kill', null, null)).toMatchObject({ zone: null, land: null });
   });
   it('選手なしは noPlayerPointTo の側に得点', () => {
     const e = buildRallyEvent(2, null, 'other_point', null, null, 'us');
@@ -38,12 +45,13 @@ describe('buildRallyEvent', () => {
   it('選手なしで noPlayerPointTo が無いとエラー', () => {
     expect(() => buildRallyEvent(1, null, 'other_point', null, null)).toThrow();
   });
-  it('相手のスパイク決定は相手の得点、サーブ系はゾーンを持たない', () => {
-    expect(buildRallyEvent(1, { side: 'them', player: 9 }, 'spike_kill', 2, null).pointTo).toBe('them');
-    expect(buildRallyEvent(1, { side: 'us', player: 3 }, 'serve_error', 2, 5)).toMatchObject({ zone: null, blocker: null, pointTo: 'them' });
+  it('相手のスパイク決定は相手の得点、ミス系は落下点を持たない', () => {
+    expect(buildRallyEvent(1, { side: 'them', player: 9 }, 'spike_kill', null, null).pointTo).toBe('them');
+    expect(buildRallyEvent(1, { side: 'us', player: 3 }, 'serve_error', { x: 0.1, y: 0.1 }, 5)).toMatchObject({ zone: null, land: null, blocker: null, pointTo: 'them' });
+    expect(buildRallyEvent(1, { side: 'us', player: 3 }, 'spike_error', { x: 0.1, y: 0.1 }, null)).toMatchObject({ zone: null, land: null });
   });
-  it('スパイク（継続）は attempt', () => {
-    expect(buildAttemptEvent(1, 'us', 4, 3)).toEqual({ t: 'attempt', set: 1, side: 'us', player: 4, zone: 3 });
+  it('スパイク（継続）は attempt（zone は null）', () => {
+    expect(buildAttemptEvent(1, 'us', 4)).toEqual({ t: 'attempt', set: 1, side: 'us', player: 4, zone: null });
   });
 });
 
@@ -81,43 +89,50 @@ describe('showBlockHint', () => {
   });
 });
 
-describe('needsZone', () => {
-  it('スパイク系と継続だけ true', () => {
-    expect(needsZone('serve_ace')).toBe(false);
-    expect(needsZone('serve_error')).toBe(false);
-    expect(needsZone('block_point')).toBe(false);
-    expect(needsZone('other_point')).toBe(false);
-    expect(needsZone('other_error')).toBe(false);
-    expect(needsZone('spike_kill')).toBe(true);
-    expect(needsZone('spike_error')).toBe(true);
-    expect(needsZone('spike_blocked')).toBe(true);
-    expect(needsZone('attempt')).toBe(true);
+describe('needsLand', () => {
+  it('スパイク決定とサービスエースだけ true', () => {
+    expect(needsLand('spike_kill')).toBe(true);
+    expect(needsLand('serve_ace')).toBe(true);
+    for (const p of ['serve_error', 'block_point', 'other_point', 'other_error', 'spike_error', 'spike_blocked', 'attempt'] as const) {
+      expect(needsLand(p)).toBe(false);
+    }
   });
 });
 
 describe('入力の段階', () => {
   const sel = { side: 'us' as Side, player: 4 };
   const play: Step = { k: 'play', sel };
-  it('ゾーン不要のプレーはすぐイベント', () => {
-    const r = choosePlay(play, 'serve_ace', 1);
+  it('スパイクミス・ブロック得点などは落下点なしですぐイベント', () => {
+    const r = choosePlay(play, 'spike_error', 1);
     expect(r.step).toEqual(IDLE);
-    expect(r.event).toMatchObject({ t: 'rally', play: 'serve_ace', pointTo: 'us' });
+    expect(r.event).toMatchObject({ t: 'rally', play: 'spike_error', zone: null, land: null, pointTo: 'them' });
+    expect(choosePlay(play, 'block_point', 1).event).toMatchObject({ play: 'block_point', pointTo: 'us' });
   });
-  it('スパイク決定 → ゾーン → イベント', () => {
+  it('スパイク決定 → 相手コートをタップ → イベント（落下点とゾーン）', () => {
     const r1 = choosePlay(play, 'spike_kill', 1);
-    expect(r1.step).toEqual({ k: 'zone', sel, play: 'spike_kill' });
+    expect(r1.step).toEqual({ k: 'land', sel, play: 'spike_kill' });
     expect(r1.event).toBeUndefined();
-    const r2 = chooseZone(r1.step, 4, 1);
-    expect(r2.event).toMatchObject({ play: 'spike_kill', zone: 4, pointTo: 'us' });
+    expect(landSide(r1.step)).toBe('them');
+    const r2 = chooseLand(r1.step, { x: 0.1, y: 0.8 }, 1);
+    expect(r2.step).toEqual(IDLE);
+    expect(r2.event).toMatchObject({ play: 'spike_kill', zone: 5, land: { x: 0.1, y: 0.8 }, pointTo: 'us' });
   });
-  it('被ブロック → ゾーン → ブロッカー（スキップ可）', () => {
-    const r1 = chooseZone(choosePlay(play, 'spike_blocked', 1).step, 2, 1);
-    expect(r1.step).toEqual({ k: 'blocker', sel, zone: 2 });
-    expect(chooseBlocker(r1.step, 14, 1).event).toMatchObject({ blocker: 14, zone: 2, pointTo: 'them' });
+  it('相手のサービスエース → 自チームコートをタップ、場所不明も可', () => {
+    const r1 = choosePlay({ k: 'play', sel: { side: 'them', player: 11 } }, 'serve_ace', 1);
+    expect(landSide(r1.step)).toBe('us');
+    expect(chooseLand(r1.step, null, 1).event).toMatchObject({ play: 'serve_ace', side: 'them', zone: null, land: null, pointTo: 'them' });
+    expect(landSide(IDLE)).toBeNull();
+    expect(chooseLand(IDLE, { x: 0, y: 0 }, 1)).toEqual({ step: IDLE });
+  });
+  it('被ブロック → ブロッカー（スキップ可）、落下点なし', () => {
+    const r1 = choosePlay(play, 'spike_blocked', 1);
+    expect(r1.step).toEqual({ k: 'blocker', sel });
+    expect(chooseBlocker(r1.step, 14, 1).event).toMatchObject({ blocker: 14, zone: null, land: null, pointTo: 'them' });
     expect(chooseBlocker(r1.step, null, 1).event).toMatchObject({ blocker: null });
   });
-  it('継続 → ゾーン → attempt', () => {
-    const r = chooseZone(choosePlay(play, 'attempt', 1).step, null, 1);
+  it('継続はすぐ attempt（zone は null）', () => {
+    const r = choosePlay(play, 'attempt', 1);
+    expect(r.step).toEqual(IDLE);
     expect(r.event).toEqual({ t: 'attempt', set: 1, side: 'us', player: 4, zone: null });
   });
   it('選手未選択なら何もしない', () => {
@@ -298,8 +313,8 @@ describe('交代・表示', () => {
   it('調子: スパイク5本以上で決定率30%未満、またはこのセットのサーブミス2本', () => {
     const evs = [
       start(1),
-      ...Array.from({ length: 5 }, () => mk(buildRallyEvent(1, { side: 'us', player: 4 }, 'spike_error', 4, null))),
-      mk(buildRallyEvent(1, { side: 'us', player: 3 }, 'spike_kill', 3, null)),
+      ...Array.from({ length: 5 }, () => mk(buildRallyEvent(1, { side: 'us', player: 4 }, 'spike_error', null, null))),
+      mk(buildRallyEvent(1, { side: 'us', player: 3 }, 'spike_kill', null, null)),
     ];
     const st = replay(cfg, evs);
     const rows = conditionRows(cfg, evs, st, DEFAULT_THRESHOLDS);

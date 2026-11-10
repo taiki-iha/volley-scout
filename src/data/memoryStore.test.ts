@@ -17,7 +17,7 @@ function fakeStorage(): Storage {
 const cfg = { format: 'bestOf' as const, sets: 3, points: 25, finalSetPoints: 15 };
 const matchInput = { date: '2026-11-09', kind: 'practice' as const, opponentId: 'o1', tournament: '', config: cfg };
 const rally = (play: 'spike_kill' | 'spike_error', zone: 1 | 2 | 3 | 4 | 5 | 6 | null = 4) =>
-  ({ t: 'rally', set: 1, side: 'us', player: 7, play, zone, blocker: null, pointTo: play === 'spike_kill' ? 'us' : 'them' }) as const;
+  ({ t: 'rally', set: 1, side: 'us', player: 7, play, zone, land: null, blocker: null, pointTo: play === 'spike_kill' ? 'us' : 'them' }) as const;
 
 describe('memoryStore', () => {
   it('appendEvent は seq 昇順・10桁ゼロ埋め id で通知し、undoLast で最大 seq を削除', async () => {
