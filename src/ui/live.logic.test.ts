@@ -5,7 +5,7 @@ import type { Lineup, MatchConfig, MatchEvent, Side } from '../core/types';
 import type { NewEvent } from '../data/store';
 import {
   IDLE, assignSlot, availablePlays, backRow, showBlockHint, benchOf, blockerCandidates, buildAttemptEvent, buildMatchConfig, buildRallyEvent, canStartSet,
-  chooseBlocker, choosePlay, chooseZone, conditionRows, initialDraft, liberoReplaced, needsZone, nextEmptySlot, nextSetNeeded,
+  chooseBlocker, choosePlay, chooseZone, conditionRows, dropPlayer, initialDraft, liberoReplaced, needsZone, nextEmptySlot, nextSetNeeded,
   nextSetNo, rotationLabel, subOutCandidates, toggleLibero, validateSetStart, withOpponentNo, type SetStartDraft, type Step,
 } from './live.logic';
 
@@ -204,6 +204,40 @@ describe('セット開始の入力', () => {
     expect(d.setters.us).toBeNull();
     expect(toggleLibero(d, 'us', 7)).toBe(d);
     expect(toggleLibero(d, 'us', 10).liberos.us).toEqual([2]);
+  });
+  it('ドラッグ: ベンチからコートへ置く（いた選手はベンチへ、リベロからも外す）', () => {
+    const empty = { ...full(), lineups: { us: [null, 2, 3, 4, 5, 6], them: [...THEM] } };
+    expect(dropPlayer(empty, 'us', 7, { k: 'slot', index: 0 }).lineups.us).toEqual([7, 2, 3, 4, 5, 6]);
+    const d = dropPlayer(full(), 'us', 7, { k: 'slot', index: 3 });
+    expect(d.lineups.us).toEqual([1, 2, 3, 7, 5, 6]);
+    expect(d.lineups.them).toEqual(THEM);
+    const d2 = dropPlayer(full(), 'us', 10, { k: 'slot', index: 0 });
+    expect(d2.lineups.us).toEqual([10, 2, 3, 4, 5, 6]);
+    expect(d2.liberos.us).toEqual([]);
+  });
+  it('ドラッグ: コート上どうしは入れ替え、空きへは移動、同じ場所は変えない', () => {
+    const d = dropPlayer(full(), 'us', 1, { k: 'slot', index: 3 });
+    expect(d.lineups.us).toEqual([4, 2, 3, 1, 5, 6]);
+    expect(d.setters.us).toBe(2);
+    const holed = { ...full(), lineups: { us: [1, 2, null, 4, 5, 6], them: [...THEM] } };
+    expect(dropPlayer(holed, 'us', 5, { k: 'slot', index: 2 }).lineups.us).toEqual([1, 2, 5, 4, null, 6]);
+    const same = full();
+    expect(dropPlayer(same, 'us', 1, { k: 'slot', index: 0 })).toBe(same);
+  });
+  it('ドラッグ: ベンチへ落とすと外れる（セッターなら未指定に）、リベロ欄でリベロに（最大2人）', () => {
+    const d = dropPlayer(full(), 'us', 2, { k: 'bench' });
+    expect(d.lineups.us).toEqual([1, null, 3, 4, 5, 6]);
+    expect(d.setters.us).toBeNull();
+    expect(dropPlayer(full(), 'us', 10, { k: 'bench' }).liberos.us).toEqual([]);
+    const bench = full();
+    expect(dropPlayer(bench, 'us', 9, { k: 'bench' })).toBe(bench);
+    const l = dropPlayer(full(), 'us', 3, { k: 'libero' });
+    expect(l.lineups.us).toEqual([1, 2, null, 4, 5, 6]);
+    expect(l.liberos.us).toEqual([10, 3]);
+    expect(dropPlayer(l, 'us', 4, { k: 'libero' })).toBe(l);
+    expect(dropPlayer(l, 'us', 10, { k: 'libero' })).toBe(l);
+    // セッター以外を外してもセッターは変えない
+    expect(dropPlayer(full(), 'us', 5, { k: 'bench' }).setters.us).toBe(2);
   });
   it('1セット目の初期値: 空、リベロはポジションLの選手', () => {
     const d = initialDraft([], replay(cfg, []), [{ no: 10, name: 'a', position: 'L' }, { no: 1, name: 'b', position: 'S' }], [{ no: 20, name: '', position: 'L' }]);

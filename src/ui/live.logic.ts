@@ -222,6 +222,51 @@ export function toggleLibero(d: SetStartDraft, side: Side, no: number): SetStart
   };
 }
 
+/** ドラッグ＆ドロップの落とし先: コートのポジション（index0=ポジション1）／ベンチ（選手一覧）／リベロ欄 */
+export type DropTarget = { k: 'slot'; index: number } | { k: 'bench' } | { k: 'libero' };
+
+/**
+ * 選手 no を target へドラッグして落としたときの配置（同じ側の中だけ）。
+ * - slot: コート上の選手なら入れ先の選手と入れ替え（入れ先が空ならそのまま移動）。ベンチ・リベロからなら置き、
+ *   入れ先にいた選手はベンチへ戻す。リベロだった選手はリベロから外す。
+ * - bench: コートからもリベロからも外す。
+ * - libero: リベロに指定する（コート上なら外す。すでに2人なら変えない）。
+ * コートから外れた選手がセッターだったら、セッターは未指定（null）に戻す。
+ */
+export function dropPlayer(d: SetStartDraft, side: Side, no: number, target: DropTarget): SetStartDraft {
+  const cur = d.lineups[side];
+  const from = cur.indexOf(no);
+  let lineup = [...cur];
+  let liberos = d.liberos[side];
+  if (target.k === 'slot') {
+    const i = target.index;
+    if (i < 0 || i > 5 || from === i) return d;
+    const occupant = lineup[i];
+    if (from >= 0) {
+      lineup[from] = occupant;
+    }
+    lineup[i] = no;
+    liberos = liberos.filter((n) => n !== no);
+  } else if (target.k === 'bench') {
+    if (from < 0 && !liberos.includes(no)) return d;
+    lineup = lineup.map((n) => (n === no ? null : n));
+    liberos = liberos.filter((n) => n !== no);
+  } else {
+    if (liberos.includes(no)) return d;
+    if (liberos.length >= 2) return d;
+    lineup = lineup.map((n) => (n === no ? null : n));
+    liberos = [...liberos, no];
+  }
+  const setter = d.setters[side];
+  const setterGone = setter !== null && cur.includes(setter) && !lineup.includes(setter);
+  return {
+    ...d,
+    lineups: { ...d.lineups, [side]: lineup },
+    liberos: { ...d.liberos, [side]: liberos },
+    setters: setterGone ? { ...d.setters, [side]: null } : d.setters,
+  };
+}
+
 export function nextEmptySlot(lineup: (number | null)[], from: number): number | null {
   for (let k = 1; k <= 6; k++) {
     const i = (from + k) % 6;

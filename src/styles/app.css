@@ -242,3 +242,18 @@ html, body { overflow-x: hidden; }
   .live-right { width: 380px; }
 }
 .edit-ctx { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- セット開始: ドラッグ＆ドロップ ---------- */
+/* 指で動かせるよう、ドラッグ元はブラウザのスクロール・長押しメニューに取られないようにする */
+.ss-slot.filled, .ss-bench .chip, .ss-lib-no { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ss-bench { min-height: var(--tap); border-radius: 8px; padding: 4px; border: 2px dashed transparent; }
+.ss-lib { min-height: var(--tap); border-radius: 8px; padding: 2px 8px; border: 2px dashed var(--line); }
+.ss-lib-no { display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: 40px; padding: 0 8px; border-radius: 20px; background: #f4d35e; color: #3d3100; font-weight: 700; cursor: grab; }
+.drop-ok { border-color: #2e86de !important; border-style: dashed; background-color: rgba(46, 134, 222, 0.08); }
+.ss-slot.drop-ok { outline: 3px dashed #2e86de; outline-offset: -3px; }
+.drop-over { background-color: rgba(46, 134, 222, 0.28) !important; }
+.ss-slot.drop-over { outline: 4px solid #2e86de; }
+.chip.dragging { opacity: 0.4; }
+.drag-ghost { position: fixed; z-index: 50; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: var(--navy); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; pointer-events: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35); opacity: 0.92; }

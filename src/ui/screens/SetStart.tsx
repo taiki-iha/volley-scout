@@ -1,10 +1,10 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import type { MatchState } from '../../core/replay';
 import type { MatchEvent, OpponentTeam, Player, Position, Side } from '../../core/types';
 import { useStore } from '../../data/StoreContext';
 import {
-  SIDE_LABEL, ZONE_GRID, assignSlot, defaultSetter, initialDraft, nextEmptySlot, toggleLibero, validateSetStart, withOpponentNo,
-  type SetStartDraft,
+  SIDE_LABEL, ZONE_GRID, assignSlot, defaultSetter, dropPlayer, initialDraft, nextEmptySlot, toggleLibero, validateSetStart, withOpponentNo,
+  type DropTarget, type SetStartDraft,
 } from '../live.logic';
 import { report } from '../notify';
 import { useBusy } from '../useBusy';
@@ -24,6 +24,25 @@ interface Props {
 
 interface Cand { no: number; label: string; position: Position | null }
 
+/** ドラッグ中の選手（指の下に丸を出す）。over = 指の下にある落とし先（data-drop の値） */
+interface Drag { side: Side; no: number; x: number; y: number; over: string | null }
+/** 押した直後（まだ動かしていない）の状態。8px 動いたらドラッグ開始 */
+interface Press { side: Side; no: number; pointerId: number; x0: number; y0: number; started: boolean }
+
+const DRAG_START_PX = 8;
+
+/** 指の下の落とし先（同じ側のものだけ）。data-drop = 'slot:<index>' | 'bench' | 'libero' */
+function dropAt(x: number, y: number, side: Side): string | null {
+  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop]');
+  return el && el.dataset.side === side ? (el.dataset.drop ?? null) : null;
+}
+function parseDrop(key: string): DropTarget | null {
+  if (key === 'bench') return { k: 'bench' };
+  if (key === 'libero') return { k: 'libero' };
+  const m = /^slot:([0-5])$/.exec(key);
+  return m ? { k: 'slot', index: Number(m[1]) } : null;
+}
+
 export function SetStart({ matchId, setNo, events, state, players, team, canStart, onStarted, onCancel }: Props) {
   const store = useStore();
   const [draft, setDraft] = useState<SetStartDraft>(() => initialDraft(events, state, players, team?.players ?? []));
@@ -34,6 +53,43 @@ export function SetStart({ matchId, setNo, events, state, players, team, canStar
   const [newNo, setNewNo] = useState('');
   const [error, setError] = useState('');
   const [busy, run] = useBusy();
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const press = useRef<Press | null>(null);
+  const suppressClickUntil = useRef(0);   // ドラッグを終えた直後の click（タップ扱い）を無視する
+
+  // ---- ドラッグ＆ドロップ（Pointer Events。iPad Safari の指操作でも動くよう HTML5 DnD は使わない） ----
+  const dragProps = (side: Side, no: number) => ({
+    onPointerDown: (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      press.current = { side, no, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, started: false };
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    },
+    onPointerMove: (e: PointerEvent) => {
+      const p = press.current;
+      if (!p || p.pointerId !== e.pointerId) return;
+      if (!p.started && Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < DRAG_START_PX) return;
+      p.started = true;
+      e.preventDefault();
+      setDrag({ side: p.side, no: p.no, x: e.clientX, y: e.clientY, over: dropAt(e.clientX, e.clientY, p.side) });
+    },
+    onPointerUp: (e: PointerEvent) => endDrag(e, true),
+    onPointerCancel: (e: PointerEvent) => endDrag(e, false),
+  });
+  function endDrag(e: PointerEvent, commit: boolean) {
+    const p = press.current;
+    if (!p || p.pointerId !== e.pointerId) return;
+    press.current = null;
+    setDrag(null);
+    if (!p.started) return;           // 動かしていなければ普通のタップ（click）として扱う
+    suppressClickUntil.current = performance.now() + 500;
+    if (!commit) return;
+    const key = dropAt(e.clientX, e.clientY, p.side);
+    const target = key ? parseDrop(key) : null;
+    if (target) setDraft((d) => dropPlayer(d, p.side, p.no, target));
+  }
+  const clickOk = () => performance.now() >= suppressClickUntil.current;
+  const dropCls = (side: Side, key: string): string =>
+    drag && drag.side === side ? (drag.over === key ? ' drop-ok drop-over' : ' drop-ok') : '';
 
   const roster: Record<Side, Cand[]> = {
     us: [...players].sort((a, b) => a.no - b.no).map((p) => ({ no: p.no, label: p.name, position: p.position })),
@@ -97,8 +153,10 @@ export function SetStart({ matchId, setNo, events, state, players, team, canStar
             const i = pos - 1;
             const isActive = !liberoMode[side] && active?.side === side && active.index === i;
             return (
-              <button key={pos} class={`ss-slot${isActive ? ' active' : ''}`}
-                onClick={() => { setLiberoMode({ ...liberoMode, [side]: false }); setActive({ side, index: i }); }}>
+              <button key={pos} class={`ss-slot${isActive ? ' active' : ''}${lineup[i] !== null ? ' filled' : ''}${dropCls(side, `slot:${i}`)}`}
+                data-drop={`slot:${i}`} data-side={side}
+                {...(lineup[i] !== null ? dragProps(side, lineup[i]!) : {})}
+                onClick={() => { if (!clickOk()) return; setLiberoMode({ ...liberoMode, [side]: false }); setActive({ side, index: i }); }}>
                 <small>ポジション{pos}</small>
                 <b>{lineup[i] ?? '–'}</b>
               </button>
@@ -109,14 +167,15 @@ export function SetStart({ matchId, setNo, events, state, players, team, canStar
           <button class={!liberoMode[side] ? 'primary' : ''} onClick={() => setLiberoMode({ ...liberoMode, [side]: false })}>スタメンに入れる</button>
           <button class={liberoMode[side] ? 'primary' : ''} onClick={() => setLiberoMode({ ...liberoMode, [side]: true })}>リベロを選ぶ</button>
         </div>
-        <p class="muted ss-hint">{liberoMode[side] ? 'リベロにする選手をタップ（最大2人）' : 'ポジションを選んで、選手をタップ'}</p>
-        <div class="chips">
+        <p class="muted ss-hint">{liberoMode[side] ? 'リベロにする選手をタップ（最大2人）' : 'ポジションを選んで選手をタップ（選手をコートへドラッグしても入れられます）'}</p>
+        <div class={`chips ss-bench${dropCls(side, 'bench')}`} data-drop="bench" data-side={side}>
           {roster[side].length === 0 && <span class="muted">{side === 'us' ? '選手が登録されていません' : '下で背番号を追加してください'}</span>}
           {roster[side].map((c) => {
             const inLineup = lineup.includes(c.no);
             const isLib = draft.liberos[side].includes(c.no);
             return (
-              <button key={c.no} class={`chip${inLineup ? ' in' : ''}${isLib ? ' lib' : ''}`} onClick={() => pick(side, c.no)}>
+              <button key={c.no} class={`chip${inLineup ? ' in' : ''}${isLib ? ' lib' : ''}${drag && drag.side === side && drag.no === c.no ? ' dragging' : ''}`}
+                {...dragProps(side, c.no)} onClick={() => { if (clickOk()) pick(side, c.no); }}>
                 <b>{c.no}</b>{c.position && <small>{c.position}</small>}{c.label && <small>{c.label}</small>}
               </button>
             );
@@ -131,7 +190,12 @@ export function SetStart({ matchId, setNo, events, state, players, team, canStar
             <button onClick={addOpponentNo}>追加</button>
           </div>
         )}
-        <div class="ss-line"><span>リベロ:</span> {draft.liberos[side].length ? draft.liberos[side].map((n) => `#${n}`).join(' ') : 'なし'}</div>
+        <div class={`ss-line ss-lib${dropCls(side, 'libero')}`} data-drop="libero" data-side={side}>
+          <span>リベロ:</span>
+          {draft.liberos[side].length
+            ? draft.liberos[side].map((n) => <span key={n} class="ss-lib-no" {...dragProps(side, n)}>#{n}</span>)
+            : <span class="muted">なし（ここへドラッグで指定）</span>}
+        </div>
         <div class="ss-line">
           <span>セッター:</span>
           {lineup.filter((n): n is number => n !== null).map((n) => (
@@ -165,6 +229,10 @@ export function SetStart({ matchId, setNo, events, state, players, team, canStar
         </div>
       </section>
       {error && <p class="error" role="alert">{error}</p>}
+      {drag && (
+        // 指の下に選手の丸を出す（pointer-events: none なので落とし先の判定を邪魔しない）
+        <div class="drag-ghost" style={{ left: `${drag.x}px`, top: `${drag.y}px` }} aria-hidden="true">{drag.no}</div>
+      )}
       <div class="row">
         <button class="primary big grow" disabled={busy} onClick={submit}>第{setNo}セットを始める</button>
         {onCancel && <button class="big" onClick={onCancel}>戻る</button>}
