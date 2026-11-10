@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { Store } from '../data/store';
 import { StoreProvider } from '../data/StoreContext';
 import { Home } from './screens/Home';
+import { Analysis } from './screens/Analysis';
 import { Join } from './screens/Join';
 import { EventEdit } from './screens/EventEdit';
 import { Live } from './screens/Live';
@@ -51,6 +52,7 @@ export function App({ store, teamId }: { store: Store | null; teamId: string | n
   switch (route.name) {
     case 'home': screen = <Home />; break;
     case 'join': screen = <Join />; break;
+    case 'analysis': screen = <Analysis />; break;
     case 'roster': screen = <Roster />; break;
     case 'opponents': screen = <Opponents />; break;
     case 'settings': screen = <Settings teamId={teamId} />; break;

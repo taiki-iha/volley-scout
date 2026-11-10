@@ -105,7 +105,7 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
           <b class="grow">試合終了（セット {state.setsWon.us}-{state.setsWon.them}）</b>
           <button onClick={() => navigate(`/match/${encodeURIComponent(id)}/reception`)}>レシーブ入力へ</button>
           <button onClick={() => navigate(`/match/${encodeURIComponent(id)}/edit`)}>記録の修正へ</button>
-          <button onClick={() => navigate('/analysis')}>分析画面へ</button>
+          <button onClick={() => navigate(`/analysis?match=${encodeURIComponent(id)}`)}>分析画面へ</button>
         </div>
       ) : nextSetNeeded(state, cfg) && !readonly ? (
         <button class="primary" onClick={() => setWantNextSet(true)}>次のセットへ</button>

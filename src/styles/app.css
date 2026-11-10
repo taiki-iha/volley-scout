@@ -203,3 +203,25 @@ button.small { min-height: var(--tap); padding: 0 12px; font-size: 16px; }
 .grade-btn:focus-visible, .rc-p:focus-visible { outline: 3px solid #e74c3c; }
 .edit-row { flex-wrap: wrap; }
 .edit-row .field { margin-bottom: 0; }
+
+/* 分析画面 */
+.an-tabs { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.an-tabs button { min-height: var(--tap); padding: 0 20px; }
+.an-tabs button.on { background: var(--navy); color: #fff; }
+.an-filter { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.an-filter .field { margin-bottom: 0; }
+.an-filter select, .an-filter input { min-height: var(--tap); }
+.stat-scroll { overflow-x: auto; }
+.stat-table { border-collapse: collapse; width: 100%; font-size: 15px; white-space: nowrap; }
+.stat-table th, .stat-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; }
+.stat-table th:first-child, .stat-table td:first-child { text-align: left; position: sticky; left: 0; background: var(--card); }
+.bars { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.bars-legend { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+.sw.won, .bar.won { background: #2a6fdb; }
+.sw.lost, .bar.lost { background: #d6453d; }
+.bar-row { display: flex; align-items: center; gap: 10px; }
+.bar-label { width: 36px; }
+.bar-pair { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.bar-line { display: flex; align-items: center; gap: 8px; }
+.bar { height: 16px; border-radius: 3px; min-width: 2px; }
