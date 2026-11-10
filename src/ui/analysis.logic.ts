@@ -1,4 +1,5 @@
-import type { Match, OpponentTeam, Player, Zone } from '../core/types';
+import { setterRotation } from '../core/rotation';
+import type { Match, MatchEvent, OpponentTeam, Player, Zone } from '../core/types';
 import type { OpponentScorer, ServerReception } from '../stats/opponent';
 import type { PlayerStats } from '../stats/player';
 import type { RotationStats } from '../stats/rotation';
@@ -31,7 +32,7 @@ export function filterMatches(
     .sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1));
 }
 
-export type CsvTable = '選手別' | 'ローテ別' | '相手得点' | '相手サーバー別';
+export type CsvTable = '選手別' | 'ローテ別' | '相手得点' | '相手サーバー別' | '相手スタメン';
 
 /** volley_<種類>_<日付YYYYMMDD>.csv（種類 = 出力する表） */
 export function csvFileName(table: CsvTable, now: Date): string {
@@ -86,3 +87,31 @@ export function serverRows(rows: ServerReception[], team: OpponentTeam | undefin
     サーバー: opponentLabel(r.server, team), 本数: r.total, A: r.A, B: r.B, C: r.C, D: r.D, 返球率: fmtPct(r.passRate),
   }));
 }
+
+/**
+ * 相手のスタメン配置とローテの記録（次の対戦のため）。試合（渡した順）× セット（昇順）ごとに1行。
+ * 各セットの set_start から、ポジション1〜6・セッター・リベロ・開始時のローテを出す。
+ * 開始ローテはセッターが分かればセッター基準の S1〜S6、不明なら開始順の番号 R1。
+ */
+export function opponentLineupRows(items: { match: Match; events: MatchEvent[] }[], team: OpponentTeam | undefined): CsvRow[] {
+  const rows: CsvRow[] = [];
+  for (const { match, events } of items) {
+    // 同じセット番号の set_start が複数あれば最後（seq 最大）のものを使う（replay と同じ）
+    const bySet = new Map<number, Extract<MatchEvent, { t: 'set_start' }>>();
+    for (const e of [...events].sort((a, b) => a.seq - b.seq)) if (e.t === 'set_start') bySet.set(e.set, e);
+    for (const set of [...bySet.keys()].sort((a, b) => a - b)) {
+      const e = bySet.get(set)!;
+      const lineup = e.lineups.them;
+      const setter = e.setters.them ?? null;
+      const r = setterRotation(lineup, setter);
+      const row: CsvRow = { 日付: match.date, セット: set };
+      lineup.forEach((no, i) => { row[`ポジション${i + 1}`] = opponentLabel(no, team); });
+      row.セッター = setter === null ? '不明' : opponentLabel(setter, team);
+      row.リベロ = e.liberos.them.length ? e.liberos.them.map((no) => opponentLabel(no, team)).join('・') : 'なし';
+      row.開始ローテ = r === null ? 'R1' : `S${r}`;
+      rows.push(row);
+    }
+  }
+  return rows;
+}
+

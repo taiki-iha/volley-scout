@@ -5,7 +5,7 @@ import { opponentScorers, receptionByOpponentServer } from '../../stats/opponent
 import { playerStats } from '../../stats/player';
 import { rotationStats, unknownSetterRallies } from '../../stats/rotation';
 import {
-  KIND_LABEL, csvFileName, type CsvTable, filterMatches, playerRows, rotationRows, scorerRows, serverRows, type KindFilter,
+  KIND_LABEL, csvFileName, type CsvTable, filterMatches, opponentLineupRows, playerRows, rotationRows, scorerRows, serverRows, type KindFilter,
 } from '../analysis.logic';
 import { BarChart } from '../components/BarChart';
 import { StatTable } from '../components/StatTable';
@@ -126,6 +126,9 @@ export function Analysis() {
         <>
           <StatTable title={`${oppTeam?.name ?? ''} 選手別の得点（ゾーン別）`} rows={scorerRows(opponentScorers(data), oppTeam)} fileName={fileName('相手得点')} />
           <StatTable title="相手サーバー別のレシーブ成績" rows={serverRows(receptionByOpponentServer(data), oppTeam)} fileName={fileName('相手サーバー別')} />
+          <StatTable title="相手のスタメン配置とローテ（セット開始時）"
+            rows={opponentLineupRows(target.map((m, i) => ({ match: m, events: data[i].events })), oppTeam)}
+            fileName={fileName('相手スタメン')} empty="セット開始の記録がありません" />
         </>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Match } from '../core/types';
-import { csvFileName, filterMatches, fmtPct, opponentLabel, playerRows, rotationRows } from './analysis.logic';
+import type { Match, MatchEvent } from '../core/types';
+import { csvFileName, filterMatches, fmtPct, opponentLabel, opponentLineupRows, playerRows, rotationRows } from './analysis.logic';
 
 const cfg = { format: 'bestOf', sets: 3, points: 25, finalSetPoints: 15 } as const;
 const mk = (id: string, date: string, kind: Match['kind'], opponentId = 'o1'): Match =>
@@ -67,3 +67,30 @@ describe('rows', () => {
     expect(keys.slice(keys.indexOf('効果率') + 1, keys.indexOf('効果率') + 7)).toEqual(['決定ゾーン1', '決定ゾーン2', '決定ゾーン3', '決定ゾーン4', '決定ゾーン5', '決定ゾーン6']);
   });
 });
+
+describe('opponentLineupRows', () => {
+  const team = { id: 'o1', name: 'X', players: [{ no: 11, name: '佐藤', position: 'S' as const }, { no: 20, name: '', position: 'L' as const }] };
+  const ss = (seq: number, set: number, themSetter: number | null, them = [11, 12, 13, 14, 15, 16]): MatchEvent => ({
+    id: `s${seq}`, seq, set, at: seq, t: 'set_start',
+    lineups: { us: [1, 2, 3, 4, 5, 6], them: them as [number, number, number, number, number, number] },
+    setters: { us: 2, them: themSetter }, liberos: { us: [], them: themSetter === null ? [] : [20] }, firstServe: 'us',
+  });
+  it('試合×セットごとにポジション1〜6・セッター・リベロ・開始ローテ', () => {
+    const rows = opponentLineupRows([
+      { match: mk('b', '2026-11-05', 'official'), events: [ss(1, 1, 13), ss(5, 2, null, [21, 22, 23, 24, 25, 26])] },
+      { match: mk('a', '2026-11-01', 'practice'), events: [ss(1, 1, 11)] },
+    ], team);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual({
+      日付: '2026-11-05', セット: 1, ポジション1: '11 佐藤', ポジション2: '12', ポジション3: '13', ポジション4: '14', ポジション5: '15', ポジション6: '16',
+      セッター: '13', リベロ: '20', 開始ローテ: 'S3',
+    });
+    expect(rows[1]).toMatchObject({ 日付: '2026-11-05', セット: 2, ポジション1: '21', セッター: '不明', リベロ: 'なし', 開始ローテ: 'R1' });
+    expect(rows[2]).toMatchObject({ 日付: '2026-11-01', セット: 1, セッター: '11 佐藤', 開始ローテ: 'S1' });
+  });
+  it('セット順に並べ、同じセットの set_start が複数あれば最後のもの', () => {
+    const rows = opponentLineupRows([{ match: mk('a', '2026-11-01', 'practice'), events: [ss(9, 2, 11), ss(1, 1, 11), ss(3, 1, 12)] }], team);
+    expect(rows.map((r) => [r.セット, r.開始ローテ])).toEqual([[1, 'S2'], [2, 'S1']]);
+  });
+});
+
