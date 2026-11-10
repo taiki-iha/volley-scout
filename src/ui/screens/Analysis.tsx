@@ -3,7 +3,7 @@ import type { Match, MatchData, MatchEvent, OpponentTeam, Player, Reception } fr
 import { useStore, useWatch } from '../../data/StoreContext';
 import { opponentScorers, receptionByOpponentServer } from '../../stats/opponent';
 import { playerStats } from '../../stats/player';
-import { rotationStats } from '../../stats/rotation';
+import { rotationStats, unknownSetterRallies } from '../../stats/rotation';
 import {
   KIND_LABEL, csvFileName, type CsvTable, filterMatches, playerRows, rotationRows, scorerRows, serverRows, type KindFilter,
 } from '../analysis.logic';
@@ -134,8 +134,10 @@ export function Analysis() {
 
 function RotationTab({ data, fileName }: { data: MatchData[]; fileName: string }) {
   const stats = rotationStats(data);
+  const unknown = unknownSetterRallies(data);
   return (
     <>
+      <p class="muted">自チームのセッターを指定していないセットのラリーは、ローテ番号が決まらないため集計に含まれません。{unknown > 0 && `（対象外 ${unknown} ラリー）`}</p>
       <StatTable title="ローテ別成績" rows={rotationRows(stats)} fileName={fileName} />
       <section class="card">
         <h2>得点・失点</h2>

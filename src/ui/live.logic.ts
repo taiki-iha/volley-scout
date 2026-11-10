@@ -270,9 +270,14 @@ export function backRow(lineup: Lineup): number[] {
 
 // ---------- 表示 ----------
 
-export function rotationLabel(lineup: Lineup, setter: number | null): string {
+/**
+ * スコアボードのローテ表示。セッターが分かれば S1〜S6（セッター基準）。
+ * セッター不明のとき、相手は「開始順の番号」R1〜R6（セット開始の並びが R1、ローテするごとに +1）、自チームは S?。
+ */
+export function rotationLabel(side: Side, lineup: Lineup, setter: number | null, rotations: number): string {
   const r = setterRotation(lineup, setter);
-  return r === null ? 'S?' : `S${r}`;
+  if (r !== null) return `S${r}`;
+  return side === 'them' ? `R${(rotations % 6) + 1}` : 'S?';
 }
 
 export interface ConditionRow { no: number; kills: number; attempts: number; serveErrorsSet: number; bad: boolean; onCourt: boolean }

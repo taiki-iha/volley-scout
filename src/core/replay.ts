@@ -6,6 +6,7 @@ export interface SetState {
   set: number; score: Record<Side, number>; serving: Side;
   lineups: Record<Side, Lineup>; setters: Record<Side, number | null>; liberos: Record<Side, number[]>;
   subsUsed: Record<Side, number>; timeouts: Record<Side, number>;
+  rotations: Record<Side, number>;  // セット開始からのローテーション回数（セッター不明時の「開始順の番号」用）
   over: boolean; winner: Side | null;
 }
 export interface RallyContext {           // 各 rally イベント時点（得点前）の状況。分析で使う
@@ -52,7 +53,8 @@ export function replay(cfg: MatchConfig, events: MatchEvent[]): MatchState {
           set: e.set, score: { us: 0, them: 0 }, serving: e.firstServe,
           lineups: { us: [...e.lineups.us] as Lineup, them: [...e.lineups.them] as Lineup },
           setters: { ...e.setters }, liberos: { us: [...e.liberos.us], them: [...e.liberos.them] },
-          subsUsed: { us: 0, them: 0 }, timeouts: { us: 0, them: 0 }, over: false, winner: null,
+          subsUsed: { us: 0, them: 0 }, timeouts: { us: 0, them: 0 }, rotations: { us: 0, them: 0 },
+          over: false, winner: null,
         });
         break;
       case 'rally':
@@ -66,11 +68,13 @@ export function replay(cfg: MatchConfig, events: MatchEvent[]): MatchState {
           });
           const to = e.pointTo;
           const score = { ...s.score, [to]: s.score[to] + 1 };
-          const lineups = to === s.serving ? s.lineups : { ...s.lineups, [to]: rotate(s.lineups[to]) };
+          const sideout = to !== s.serving;
+          const lineups = sideout ? { ...s.lineups, [to]: rotate(s.lineups[to]) } : s.lineups;
+          const rotations = sideout ? { ...s.rotations, [to]: s.rotations[to] + 1 } : s.rotations;
           const over = isSetOver(cfg, s.set, score.us, score.them);
           const winner: Side | null = over ? (score.us > score.them ? 'us' : 'them') : null;
           if (winner) setsWon[winner]++;
-          return { ...s, score, lineups, serving: to, over, winner };
+          return { ...s, score, lineups, rotations, serving: to, over, winner };
         });
         break;
       case 'sub':

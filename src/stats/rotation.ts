@@ -38,3 +38,12 @@ export function rotationStats(data: MatchData[]): RotationStats[] {
     breakRate: ratio(a.breaks, a.serveRallies),
   }));
 }
+
+/** 自チームのセッターが不明（ローテ番号なし）で、ローテ別成績から除外したラリーの数 */
+export function unknownSetterRallies(data: MatchData[]): number {
+  let n = 0;
+  for (const m of data) {
+    for (const r of replay(m.cfg, m.events).rallies) if (r.usRotation === null) n++;
+  }
+  return n;
+}

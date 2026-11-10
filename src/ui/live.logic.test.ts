@@ -210,8 +210,22 @@ describe('交代・表示', () => {
     expect(backRow(US)).toEqual([1, 6, 5]);
   });
   it('ローテ番号', () => {
-    expect(rotationLabel(US, 2)).toBe('S2');
-    expect(rotationLabel(US, null)).toBe('S?');
+    expect(rotationLabel('us', US, 2, 0)).toBe('S2');
+    expect(rotationLabel('them', THEM, 13, 4)).toBe('S3');
+    expect(rotationLabel('us', US, null, 3)).toBe('S?');
+  });
+  it('相手セッター不明なら開始順の番号（R1 から、ローテするごとに +1、6 の次は R1）', () => {
+    expect(rotationLabel('them', THEM, null, 0)).toBe('R1');
+    expect(rotationLabel('them', THEM, null, 5)).toBe('R6');
+    expect(rotationLabel('them', THEM, null, 6)).toBe('R1');
+    // replay のローテ回数: 自チームサーブで相手が得点（サイドアウト）→ 相手が1回ローテ
+    const evs = [
+      mk({ t: 'set_start', set: 1, lineups: { us: US, them: THEM }, setters: { us: 2, them: null }, liberos: { us: [], them: [] }, firstServe: 'us' }),
+      ...points(1, 'them', 1), ...points(1, 'them', 1), ...points(1, 'us', 1), ...points(1, 'them', 1),
+    ];
+    const cur = replay(cfg, evs).current!;
+    expect(cur.rotations).toEqual({ us: 1, them: 2 });
+    expect(rotationLabel('them', cur.lineups.them, cur.setters.them, cur.rotations.them)).toBe('R3');
   });
   it('調子: スパイク5本以上で決定率30%未満、またはこのセットのサーブミス2本', () => {
     const evs = [

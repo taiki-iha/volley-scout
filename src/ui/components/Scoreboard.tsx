@@ -11,7 +11,7 @@ export function Scoreboard({ cur, setsWon, opponentName }: Props) {
       <div class="sb-team">
         {serveMark('them')}
         <span class="sb-name">{opponentName}</span>
-        <span class="sb-rot">{rotationLabel(cur.lineups.them, cur.setters.them)}</span>
+        <span class="sb-rot">{rotationLabel('them', cur.lineups.them, cur.setters.them, cur.rotations.them)}</span>
       </div>
       <div class="sb-center">
         <span class="sb-score">{cur.score.them}</span>
@@ -22,7 +22,7 @@ export function Scoreboard({ cur, setsWon, opponentName }: Props) {
         <span class="sb-score">{cur.score.us}</span>
       </div>
       <div class="sb-team sb-us">
-        <span class="sb-rot">{rotationLabel(cur.lineups.us, cur.setters.us)}</span>
+        <span class="sb-rot">{rotationLabel('us', cur.lineups.us, cur.setters.us, cur.rotations.us)}</span>
         <span class="sb-name">自チーム</span>
         {serveMark('us')}
       </div>

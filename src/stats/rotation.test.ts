@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rotationStats } from './rotation';
+import { rotationStats, unknownSetterRallies } from './rotation';
 import type { Lineup, MatchConfig, MatchData, MatchEvent, PlayKind, Side } from '../core/types';
 
 const cfg: MatchConfig = { format: 'bestOf', sets: 3, points: 25, finalSetPoints: 15 };
@@ -38,5 +38,17 @@ describe('rotationStats', () => {
     const sr = ser.reduce((a, r) => ({ s: a.s + r.serveRallies, b: a.b + r.breaks }), { s: 0, b: 0 });
     expect(sr).toEqual({ s: 2, b: 1 });
     expect(ser.find((r) => r.serveRallies === 2)!.breakRate).toBeCloseTo(0.5);
+  });
+});
+
+describe('unknownSetterRallies', () => {
+  it('自チームのセッター不明のラリーだけ数える（ローテ別からは除外される）', () => {
+    n++;
+    const noSetter: MatchEvent = { id: `s${n}`, seq: n, set: 1, at: n, t: 'set_start', lineups: { us: US, them: THEM }, setters: { us: null, them: 11 }, liberos: { us: [], them: [] }, firstServe: 'us' };
+    const unknown: MatchData = { cfg, events: [noSetter, rally('serve_ace', 'us', 1, 'us'), rally('serve_error', 'us', 1, 'them')], receptions: [] };
+    const known: MatchData = { cfg, events: [start('us'), rally('serve_ace', 'us', 1, 'us')], receptions: [] };
+    expect(unknownSetterRallies([unknown, known])).toBe(2);
+    const rows = rotationStats([unknown, known]);
+    expect(rows.reduce((a, r) => a + r.pointsWon + r.pointsLost, 0)).toBe(1);
   });
 });
