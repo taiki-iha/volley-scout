@@ -1,4 +1,4 @@
-import { hitPosition, type HitPos } from '../core/court';
+import { hitPosition, rallyLandZone, type HitPos } from '../core/court';
 import { replay } from '../core/replay';
 import type { Grade, MatchConfig, MatchData, MatchEvent, PlayKind, Side, Zone } from '../core/types';
 import { ratio } from './player';
@@ -47,7 +47,8 @@ export function opponentScorers(data: MatchData[]): OpponentScorer[] {
         const h = hitPosition(ctx.themLineup, ev.player);
         if (h !== null) s.byHit[h]++;
       }
-      if ((ev.play === 'spike_kill' || ev.play === 'serve_ace') && ev.zone !== null) s.byLandZone[ev.zone]++;
+      const lz = rallyLandZone(ev);   // v1.0 の記録（land の項目なし）は落下ゾーン不明
+      if ((ev.play === 'spike_kill' || ev.play === 'serve_ace') && lz !== null) s.byLandZone[lz]++;
       s.byPlay[ev.play] = (s.byPlay[ev.play] ?? 0) + 1;
     }
   }

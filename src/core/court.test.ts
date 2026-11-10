@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attackOrigin, fromScreen, hitPosition, landZone, positionOf, toScreen, toSvg, zoneCenter } from './court';
+import { attackOrigin, fromScreen, hitPosition, landZone, positionOf, rallyLandZone, toScreen, toSvg, zoneCenter } from './court';
 import type { Lineup, Zone } from './types';
 
 describe('landZone（守る側から見たゾーン）', () => {
@@ -19,6 +19,15 @@ describe('landZone（守る側から見たゾーン）', () => {
   });
   it('ゾーンの中心は同じゾーンになる', () => {
     for (const z of [1, 2, 3, 4, 5, 6] as Zone[]) expect(landZone(zoneCenter(z))).toBe(z);
+  });
+});
+
+describe('rallyLandZone（v1.0 の記録は落下ゾーン不明）', () => {
+  it('land の項目が無い（v1.0）なら zone があっても null、v1.1 は zone のまま', () => {
+    expect(rallyLandZone({ zone: 4 })).toBeNull();
+    expect(rallyLandZone({ zone: 4, land: null })).toBe(4);
+    expect(rallyLandZone({ zone: 2, land: { x: 0.9, y: 0.1 } })).toBe(2);
+    expect(rallyLandZone({ zone: null, land: null })).toBeNull();
   });
 });
 

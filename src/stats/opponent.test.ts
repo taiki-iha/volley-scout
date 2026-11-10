@@ -32,6 +32,15 @@ describe('opponentScorers', () => {
     expect(r[1].byLandZone[1]).toBe(1);
     expect(r[1].byHit).toEqual({ left: 0, center: 0, right: 0, back: 0 });
   });
+  it('v1.0 の記録（land の項目なし）の zone は落下ゾーンに数えない', () => {
+    const s0 = start('them');
+    const old = { ...rally('spike_kill', 'them', 14, 'them', 4) } as Record<string, unknown>;
+    delete old.land;
+    const r = opponentScorers([{ cfg, events: [s0, old as unknown as MatchEvent], receptions: [] }]);
+    expect(r[0].points).toBe(1);
+    expect(r[0].byHit.left).toBe(1);
+    expect(Object.values(r[0].byLandZone).every((v) => v === 0)).toBe(true);
+  });
   it('複数試合合算', () => {
     const m = () => ({ cfg, events: [start('us'), rally('spike_kill', 'them', 7, 'them', 4)], receptions: [] });
     expect(opponentScorers([m(), m()])[0].points).toBe(2);

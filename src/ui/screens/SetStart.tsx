@@ -74,6 +74,8 @@ export function SetStart({ matchId, setNo, events, state, players, team, canStar
     },
     onPointerUp: (e: PointerEvent) => endDrag(e, true),
     onPointerCancel: (e: PointerEvent) => endDrag(e, false),
+    // 捕捉が外れた（要素が消えた等）ときも押した状態・指の下の丸を残さない。pointerup の後は press が空なので何もしない
+    onLostPointerCapture: (e: PointerEvent) => endDrag(e, false),
   });
   function endDrag(e: PointerEvent, commit: boolean) {
     const p = press.current;

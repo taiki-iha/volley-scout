@@ -1,4 +1,5 @@
 import { useMemo } from 'preact/hooks';
+import { rallyLandZone } from '../../core/court';
 import { replay } from '../../core/replay';
 import type { Match, MatchEvent, OpponentTeam, PlayKind, Player, Side, Zone } from '../../core/types';
 import { useStore, useWatch } from '../../data/StoreContext';
@@ -55,10 +56,11 @@ export function EventEdit({ id }: { id: string }) {
   // 落下ゾーン（守る側コート）。選び直すとタップした落下点は消す
   const zoneSel = (e: Extract<Editable, { t: 'rally' }>) => (
     <label class="field">落下ゾーン
-      <select value={e.zone ?? ''} onChange={(ev) => {
+      <select value={rallyLandZone(e) ?? ''} onChange={(ev) => {
         const v = ev.currentTarget.value;
         const z = v === '' ? null : (Number(v) as Zone);
-        if (z !== e.zone) save(e.id, landZonePatch(z));
+        // v1.0 の記録（zone は打った位置の意味）は不明として表示し、選べば land: null 付きで落下ゾーンとして保存する
+        if (z !== rallyLandZone(e) || e.land === undefined) save(e.id, landZonePatch(z));
       }}>
         <option value="">不明</option>
         {ZONES.map((z) => <option key={z} value={z}>{z}</option>)}

@@ -39,6 +39,14 @@ export function zoneCenter(z: Zone): LandPoint {
   return { x, y: z >= 2 && z <= 4 ? 1 / 6 : 2 / 3 };
 }
 
+/**
+ * rally イベントの落下ゾーン。v1.1 以降の rally は必ず land の項目を持つ（値は null 可）。
+ * land の項目自体が無いのは v1.0 の記録で、その zone は「打った位置」の意味なので落下ゾーンとしては不明（null）にする。
+ */
+export function rallyLandZone(ev: { zone: Zone | null; land?: LandPoint | null }): Zone | null {
+  return ev.land === undefined ? null : ev.zone;
+}
+
 // ---------- 打った位置 ----------
 
 export type HitPos = 'left' | 'center' | 'right' | 'back';

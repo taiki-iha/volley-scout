@@ -47,7 +47,10 @@ export function Court({ side, set, lineup, rotations, serving, setter, liberos, 
   const shownKey = useRef<string | null>(null);
   const [flash, setFlash] = useState<{ n: number; label: string } | null>(null);
   const [entered, setEntered] = useState<number[]>([]);
-  const timers = useRef<number[]>([]);
+  // タイマーは種類ごとに1つだけ持ち、新しく予約する前に前のものを取り消す
+  // （ローテ直後の「1つ戻す」で、前の消去タイマーが新しい表示や動きを途中で消さないように）
+  const timers = useRef<Record<'flash' | 'enter' | 'move', number | undefined>>({ flash: undefined, enter: undefined, move: undefined });
+  const frame = useRef<number | undefined>(undefined);
 
   // 描画の直前（DOM はまだ前の並び）に、各選手の今の位置を控える
   if (shownKey.current !== null && shownKey.current !== key) {
@@ -64,18 +67,24 @@ export function Court({ side, set, lineup, rotations, serving, setter, liberos, 
     prev.current = snap;
     const old = before.current;
     before.current = null;
-    const later = (f: () => void, ms: number) => { timers.current.push(window.setTimeout(f, ms)); };
+    const later = (kind: 'flash' | 'enter' | 'move', f: () => void, ms: number) => {
+      clearTimeout(timers.current[kind]);
+      timers.current[kind] = window.setTimeout(() => { timers.current[kind] = undefined; f(); }, ms);
+    };
 
     if (change.rotated) {
       setFlash((f) => ({ n: (f?.n ?? 0) + 1, label: change.rotated === 'forward' ? 'ローテ' : 'ローテ戻し' }));
-      later(() => setFlash(null), FLASH_MS);
+      later('flash', () => setFlash(null), FLASH_MS);
     }
     if (change.entered.length) {
       setEntered(change.entered);
-      later(() => setEntered([]), ENTER_MS);
+      later('enter', () => setEntered([]), ENTER_MS);
     }
     // 動きを減らす設定のときは動かさない（光る表示だけ）
     if (!change.rotated || !old || reducedMotion()) return;
+    // 前の動きが残っていれば、その後始末（transition を消す）と次フレームの予約を取り消す
+    clearTimeout(timers.current.move);
+    if (frame.current !== undefined) cancelAnimationFrame(frame.current);
     const moved: HTMLElement[] = [];
     for (const [no, el] of players()) {
       const b = old.get(no);
@@ -89,16 +98,20 @@ export function Court({ side, set, lineup, rotations, serving, setter, liberos, 
     }
     if (!moved.length) return;
     void moved[0].offsetWidth;  // 元の位置に置いた状態を確定させてから動かす
-    requestAnimationFrame(() => {
+    frame.current = requestAnimationFrame(() => {
+      frame.current = undefined;
       for (const el of moved) {
         el.style.transition = `transform ${MOVE_MS}ms ease`;
         el.style.transform = '';
       }
     });
-    later(() => { for (const el of moved) el.style.transition = ''; }, MOVE_MS + 50);
+    later('move', () => { for (const el of moved) el.style.transition = ''; }, MOVE_MS + 50);
   }, [key]);
 
-  useEffect(() => () => { timers.current.forEach((t) => clearTimeout(t)); }, []);
+  useEffect(() => () => {
+    Object.values(timers.current).forEach((t) => clearTimeout(t));
+    if (frame.current !== undefined) cancelAnimationFrame(frame.current);
+  }, []);
 
   return (
     <div class={`court court-${side}${onLand ? ' landing' : ''}`}>
