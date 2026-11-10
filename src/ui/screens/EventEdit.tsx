@@ -6,7 +6,7 @@ import type { EventPatch } from '../../data/store';
 import { PLAY_LABEL, SIDE_LABEL, other } from '../live.logic';
 import { report } from '../notify';
 import { navigate } from '../router';
-import { needsZone, playChangePatch, playChoices } from '../reception.logic';
+import { editContextLabel, editContexts, needsZone, playChangePatch, playChoices } from '../reception.logic';
 
 const ZONES: Zone[] = [1, 2, 3, 4, 5, 6];
 type Editable = Extract<MatchEvent, { t: 'rally' | 'attempt' }>;
@@ -23,6 +23,8 @@ export function EventEdit({ id }: { id: string }) {
     if (!match || !events) return new Map<string, Record<Side, number[]>>();
     return new Map(replay(match.config, events).rallies.map((r) => [r.eventId, { us: [...r.usLineup], them: [...r.themLineup] }]));
   }, [match, events]);
+  // 動画と照らし合わせて行を探せるよう、そのラリーの前の点数とサーバーを出す
+  const contexts = useMemo(() => (match && events ? editContexts(match.config, events) : new Map()), [match, events]);
 
   if (!matches || !events || !players || !opponents) return <div class="screen"><p class="muted">読み込み中…</p></div>;
   if (!match) return <div class="screen"><h1>試合が見つかりません</h1></div>;
@@ -62,13 +64,14 @@ export function EventEdit({ id }: { id: string }) {
   return (
     <div class="screen wide">
       <div class="row"><h1 class="grow">記録の修正</h1><button onClick={() => navigate(`/match/${encodeURIComponent(id)}/reception`)}>レシーブ入力へ</button></div>
-      <p class="muted">変更はすぐに保存されます。得点とミスを入れ替える修正（点数が変わるもの）は選べません。</p>
+      <p class="muted">変更はすぐに保存されます。得点とミスを入れ替える修正（点数が変わるもの）は選べません。点数はそのラリーの前の点数（自チーム-相手）です。</p>
       {list.length === 0 && <p class="muted">修正できる記録がありません</p>}
       <ul class="list">
         {list.map((e, i) => (
           <li key={e.id} class="row edit-row">
             <span class="tag">{i + 1}</span>
             <span>第{e.set}セット</span>
+            {contexts.has(e.id) && <span class="edit-ctx">{editContextLabel(contexts.get(e.id)!)}</span>}
             <span>{e.side ? SIDE_LABEL[e.side] : '選手なし'}</span>
             {playerSel(e)}
             {e.t === 'rally' ? (

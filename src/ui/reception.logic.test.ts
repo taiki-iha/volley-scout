@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { MatchEvent, Reception } from '../core/types';
 import type { ReceptionRow } from '../stats/opponent';
-import { mergeRows, nextUngradedRowId, playChangePatch, playChoices, receiverCandidates } from './reception.logic';
+import { editContextLabel, editContexts, mergeRows, nextUngradedRowId, playChangePatch, playChoices, receiverCandidates } from './reception.logic';
 
 const row = (id: string, preset: ReceptionRow['preset'] = null): ReceptionRow => ({
   rallyId: id, set: 1, scoreBefore: { us: 0, them: 0 }, server: 3, usRotation: 1, preset,
@@ -43,3 +43,32 @@ describe('reception.logic', () => {
     expect(playChangePatch(cur, 'other_error')).toEqual({ play: 'other_error', zone: null, blocker: null });
   });
 });
+
+describe('editContexts（記録の修正画面の点数・サーバー）', () => {
+  const cfg = { format: 'bestOf' as const, sets: 3, points: 25, finalSetPoints: 15 };
+  let n = 0;
+  const ev = (e: Record<string, unknown>): MatchEvent => { n++; return { id: `e${String(n).padStart(3, '0')}`, seq: n, at: n, set: 1, ...e } as MatchEvent; };
+  const start = ev({ t: 'set_start', lineups: { us: [1, 2, 3, 4, 5, 6], them: [11, 12, 13, 14, 15, 16] }, setters: { us: 2, them: 11 }, liberos: { us: [], them: [] }, firstServe: 'us' });
+  const r1 = ev({ t: 'rally', side: 'us', player: 1, play: 'serve_ace', zone: null, blocker: null, pointTo: 'us' });
+  const a1 = ev({ t: 'attempt', side: 'us', player: 4, zone: 4 });
+  const r2 = ev({ t: 'rally', side: 'them', player: 14, play: 'spike_kill', zone: 4, blocker: null, pointTo: 'them' });
+  const a2 = ev({ t: 'attempt', side: 'us', player: 3, zone: 3 });
+  const events = [start, r1, a1, r2, a2];
+
+  it('rally はそのラリーの前の点数とサーバー', () => {
+    const m = editContexts(cfg, events);
+    expect(m.get(r1.id)).toEqual({ set: 1, score: { us: 0, them: 0 }, serving: 'us', server: 1 });
+    expect(m.get(r2.id)).toEqual({ set: 1, score: { us: 1, them: 0 }, serving: 'us', server: 1 });
+  });
+  it('attempt は同じラリー（次の rally）の状況、まだラリー中なら今の状況', () => {
+    const m = editContexts(cfg, events);
+    expect(m.get(a1.id)).toEqual(m.get(r2.id));
+    // r2 で相手がサイドアウト → 相手がローテして #12 がサーブ
+    expect(m.get(a2.id)).toEqual({ set: 1, score: { us: 1, them: 1 }, serving: 'them', server: 12 });
+    expect(m.has(start.id)).toBe(false);
+  });
+  it('表示は「自チーム-相手」の点数とサーバー', () => {
+    expect(editContextLabel({ set: 1, score: { us: 12, them: 10 }, serving: 'them', server: 7 })).toBe('12-10 サーブ 相手 #7');
+  });
+});
+

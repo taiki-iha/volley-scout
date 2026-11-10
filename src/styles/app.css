@@ -241,3 +241,4 @@ html, body { overflow-x: hidden; }
   .live { max-width: 1400px; }
   .live-right { width: 380px; }
 }
+.edit-ctx { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }

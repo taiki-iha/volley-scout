@@ -1,7 +1,9 @@
 // 試合後のレシーブ入力・記録修正画面の判断ロジック（画面から切り出してテストする）
-import type { Grade, Lineup, MatchEvent, PlayKind, Reception } from '../core/types';
+import { replay } from '../core/replay';
+import { server } from '../core/rotation';
+import type { Grade, Lineup, MatchConfig, MatchEvent, PlayKind, Reception, Side } from '../core/types';
 import type { ReceptionRow } from '../stats/opponent';
-import { PLAY_ORDER, isScoring } from './live.logic';
+import { PLAY_ORDER, SIDE_LABEL, isScoring } from './live.logic';
 
 export const GRADES: Grade[] = ['A', 'B', 'C', 'D'];
 export const GRADE_DEFS: Record<Grade, string> = {
@@ -58,3 +60,38 @@ export function playChangePatch(cur: Rally, play: PlayKind): Partial<Pick<Rally,
 }
 
 export { needsZone };
+
+/** 修正画面の各行に出す「そのラリーの前の」セット・点数・サーバー（動画と照らし合わせるため） */
+export interface EditContext { set: number; score: Record<Side, number>; serving: Side; server: number }
+
+/**
+ * rally / attempt イベントの id → そのラリー開始時の状況。
+ * rally は replay の scoreBefore。attempt（スパイク継続）は同じセットで次に来る rally のもの（同じラリー中の出来事なので）。
+ * 次の rally がまだ無い attempt は、そのセットの現在の状況。セット終了後に入った rally など状況が無いものは含めない。
+ */
+export function editContexts(cfg: MatchConfig, events: readonly MatchEvent[]): Map<string, EditContext> {
+  const st = replay(cfg, [...events]);
+  const byRally = new Map(st.rallies.map((r) => [r.eventId, { set: r.set, score: r.scoreBefore, serving: r.serving, server: r.server }]));
+  const out = new Map<string, EditContext>();
+  const pending: Extract<MatchEvent, { t: 'attempt' }>[] = [];
+  for (const e of [...events].sort((a, b) => a.seq - b.seq || (a.id < b.id ? -1 : 1))) {
+    if (e.t === 'attempt') pending.push(e);
+    if (e.t !== 'rally') continue;
+    const ctx = byRally.get(e.id);
+    if (!ctx) continue;
+    out.set(e.id, ctx);
+    for (const a of pending.splice(0)) if (a.set === ctx.set) out.set(a.id, ctx);
+  }
+  // まだラリーが終わっていない attempt は、そのセットの今の状況
+  for (const a of pending) {
+    const s = [...st.sets].reverse().find((x) => x.set === a.set);
+    if (s && !s.over) out.set(a.id, { set: s.set, score: { ...s.score }, serving: s.serving, server: server(s.lineups[s.serving]) });
+  }
+  return out;
+}
+
+/** 例: 「12-10 サーブ 自チーム #5」（点数は 自チーム-相手） */
+export function editContextLabel(c: EditContext): string {
+  return `${c.score.us}-${c.score.them} サーブ ${SIDE_LABEL[c.serving]} #${c.server}`;
+}
+
