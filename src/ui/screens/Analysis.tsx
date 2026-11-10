@@ -14,6 +14,7 @@ import { CourseChart } from '../components/CourseChart';
 import { ScoreFlow, ScoreFlowLegend } from '../components/ScoreFlow';
 import { StatTable } from '../components/StatTable';
 import { scoreFlow } from '../scoreFlow.logic';
+import { setTimeRows } from '../timing.logic';
 
 /** 選択した試合すべての events / receptions を購読する。全試合ぶん届くまで undefined */
 function useMatchData(matches: Match[]): MatchData[] | undefined {
@@ -134,7 +135,7 @@ export function Analysis() {
         <RotationTab data={data} fileName={fileName('ローテ別')} />
       ) : tab === 'flow' ? (
         one && data.length === 1
-          ? <FlowTab data={data[0]} opponentName={teamName(one.opponentId)} />
+          ? <FlowTab data={data[0]} opponentName={teamName(one.opponentId)} fileName={fileName('セット時間')} />
           : <p class="muted">得点経過は、上の「試合を1つ選ぶ」で試合を選ぶと、セットごとに表示されます。</p>
       ) : (
         <>
@@ -168,15 +169,19 @@ function RotationTab({ data, fileName }: { data: MatchData[]; fileName: string }
 }
 
 /** 選んだ1試合の得点経過（セットごと） */
-function FlowTab({ data, opponentName }: { data: MatchData; opponentName: string }) {
+function FlowTab({ data, opponentName, fileName }: { data: MatchData; opponentName: string; fileName: string }) {
   const flows = useMemo(() => scoreFlow(data.cfg, data.events), [data]);
   return (
-    <section class="card">
-      <h2>得点経過</h2>
-      {flows.length === 0
-        ? <p class="muted">セット開始の記録がありません</p>
-        : <div class="sf-list">{flows.map((f, i) => <ScoreFlow key={i} flow={f} opponentName={opponentName} />)}</div>}
-      <ScoreFlowLegend />
-    </section>
+    <>
+      <section class="card">
+        <h2>得点経過</h2>
+        {flows.length === 0
+          ? <p class="muted">セット開始の記録がありません</p>
+          : <div class="sf-list">{flows.map((f, i) => <ScoreFlow key={i} flow={f} opponentName={opponentName} showDuration />)}</div>}
+        <ScoreFlowLegend />
+      </section>
+      <StatTable title="セットごとの時間" rows={setTimeRows(flows)} fileName={fileName} empty="セット開始の記録がありません" />
+      <p class="muted an-note">時間 = セット開始からそのセット最後の得点まで（記録した時刻から計算）。試合全体はセット間の休みを含みます。</p>
+    </>
   );
 }

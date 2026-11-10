@@ -1,7 +1,6 @@
-import { DEFAULT_THRESHOLDS } from '../core/condition';
 import type { Match, MatchEvent, OpponentTeam, Player, Reception } from '../core/types';
 import { applyEventPatch, buildNextEvent, lastEvent, sortOpponents } from './eventPatch';
-import type { NewEvent, Settings, Store, Unsub } from './store';
+import { normalizeSettings, type NewEvent, type Settings, type Store, type Unsub } from './store';
 
 const KEY = 'volley-scout:v1';
 
@@ -122,7 +121,7 @@ export function createMemoryStore(storage?: Storage): MemoryStore {
       commit();
     },
 
-    watchSettings: (cb) => watch(() => state.settings ?? { thresholds: DEFAULT_THRESHOLDS }, cb),
+    watchSettings: (cb) => watch(() => normalizeSettings(state.settings), cb),
     async saveSettings(s) { state = { ...state, settings: s }; commit(); },
   };
 }

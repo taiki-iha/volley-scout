@@ -347,3 +347,39 @@ html, body { overflow-x: hidden; }
 .flow-panel-close { min-height: var(--tap); min-width: var(--tap); padding: 0 12px; font-size: 15px; }
 button.flow-toggle { padding: 0 14px; white-space: nowrap; }
 button.flow-toggle.on { background: var(--navy); color: #fff; }
+
+/* 設定: チェックボックス（行全体をタップできる） */
+.check-field { display: flex; align-items: center; gap: 12px; min-height: var(--tap); margin-bottom: 12px; cursor: pointer; font-size: 16px; }
+.check-field input[type="checkbox"] { width: 28px; height: 28px; min-height: 0; margin: 0; flex-shrink: 0; accent-color: var(--navy); }
+
+/* 得点経過: 時間の目盛り（セット開始から5分ごと） */
+.sf { --sf-t: 16px; }
+.sf.compact { --sf-t: 14px; }
+.sf-lab.time { height: var(--sf-t); line-height: var(--sf-t); font-size: 10px; font-weight: 400; color: var(--muted); border-top: 1px solid var(--line); }
+.sf-time { height: var(--sf-t); line-height: var(--sf-t); font-size: 10px; color: var(--muted); white-space: nowrap; overflow: visible; border-top: 1px solid var(--line); position: relative; }
+.sf-time.on { border-left: 2px solid #9aa3b8; padding-left: 1px; font-weight: 700; color: var(--navy); z-index: 1; }
+.sf-mk { margin-bottom: var(--sf-t); }
+.sf-dur { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--navy-soft); border-radius: 6px; padding: 0 8px; }
+
+/* 経過時間（スコアボードの下の段の中央） */
+.sb-clock { display: inline-flex; gap: 14px; line-height: 1; font-variant-numeric: tabular-nums; }
+.sb-clock b { font-size: 14px; }
+.sb-clock .stopped { opacity: 0.75; }
+.sb-sub { align-items: baseline; opacity: 1; }
+.sb-sub > span:not(.sb-clock) { opacity: 0.8; }
+.audio-hint { font-size: 13px; line-height: 1.3; max-width: 9.5em; color: var(--navy); background: #fff4d6; border: 1px solid #e0b100; border-radius: 8px; padding: 4px 8px; }
+
+/* タイムアウトのカウントダウン（コートの上だけに重ねる） */
+.live .courts { position: relative; }
+.to-overlay { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: rgba(31, 42, 68, 0.9); color: #fff; border-radius: 8px; text-align: center; padding: 8px; }
+.to-title { font-size: 24px; font-weight: 800; }
+.to-time { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.to-time b { font-size: 88px; line-height: 1; margin-left: 8px; }
+.to-count { font-size: 18px; opacity: 0.9; }
+.to-over { font-size: 17px; font-weight: 700; background: #fff4d6; color: #6b4f00; border-radius: 8px; padding: 4px 12px; }
+.to-overlay.warn { background: rgba(176, 58, 46, 0.92); }
+.to-overlay.warn .to-time b { color: #ffe08a; }
+.to-overlay.ended { background: rgba(30, 126, 70, 0.92); }
+.to-overlay.ended .to-time { font-size: 48px; font-weight: 800; }
+.to-close { margin-top: 6px; min-height: var(--tap); min-width: 120px; background: #fff; color: var(--navy); border-color: #fff; font-weight: 700; }

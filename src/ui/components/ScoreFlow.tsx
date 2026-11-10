@@ -2,12 +2,15 @@ import type { ComponentChildren } from 'preact';
 import { useLayoutEffect, useRef } from 'preact/hooks';
 import type { Side } from '../../core/types';
 import type { FlowMarker, SetFlow } from '../scoreFlow.logic';
+import { formatElapsed, setDurationMs } from '../timing.logic';
 
 interface Props {
   flow: SetFlow; opponentName: string;
   /** 最新の得点まで横に自動スクロールする（入力・閲覧画面） */
   follow?: boolean;
   compact?: boolean;
+  /** 見出しにセットの時間（開始 → 最後のラリー）を出す（分析画面） */
+  showDuration?: boolean;
 }
 
 const SIDE_SHORT: Record<Side, string> = { us: '自', them: '相' };
@@ -15,7 +18,7 @@ const KIND_LABEL: Record<FlowMarker['kind'], string> = { timeout: 'T', sub: '交
 const KIND_TITLE: Record<FlowMarker['kind'], string> = { timeout: 'タイムアウト', sub: '選手交代' };
 
 /** テレビ中継の「得点経過」。1列が1ラリーで、取った側の段にその時点の得点を出す */
-export function ScoreFlow({ flow, opponentName, follow, compact }: Props) {
+export function ScoreFlow({ flow, opponentName, follow, compact, showDuration }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   // 右端（最新）を見ているときだけ追いかける。手で前の方へ戻したら、そのまま止める
   const atEnd = useRef(true);
@@ -48,23 +51,27 @@ export function ScoreFlow({ flow, opponentName, follow, compact }: Props) {
       <div key={c.eventId} class={`sf-col${c.runOf ? ` run-${c.runOf}` : ''}`}>
         <span class={`sf-cell us${c.us !== null ? ' on' : ''}`}>{c.us ?? ''}</span>
         <span class={`sf-cell them${c.them !== null ? ' on' : ''}`}>{c.them ?? ''}</span>
+        <span class={`sf-time${c.tick ? ' on' : ''}`} title={c.tick ? `セット開始から${c.tick}分を過ぎて最初の得点` : undefined}>{c.tick ? `${c.tick}分` : ''}</span>
       </div>,
     );
     pushMarkers(i + 1);
   });
 
   const status = flow.over ? '終了' : '途中';
+  const dur = showDuration ? setDurationMs(flow) : null;
   return (
     <div class={`sf${compact ? ' compact' : ''}`}>
       <div class="sf-head">
         <b>第{flow.set}セット</b>
         <span class="sf-score">自チーム {flow.score.us} - {flow.score.them} {opponentName}</span>
         <small class="muted">（{status}）</small>
+        {dur !== null && <span class="sf-dur">時間 {formatElapsed(dur)}</span>}
       </div>
       <div class="sf-body">
         <div class="sf-labels">
           <span class="sf-lab us">自チーム</span>
           <span class="sf-lab them">{opponentName}</span>
+          <span class="sf-lab time">経過</span>
         </div>
         <div class="sf-scroll" ref={scroller} onScroll={onScroll}>
           {flow.columns.length === 0 && flow.markers.length === 0
@@ -83,6 +90,7 @@ export function ScoreFlowLegend() {
       <span><i class="sw sf-sw-us" />自チームの連続得点</span>
       <span><i class="sw sf-sw-them" />相手の連続得点</span>
       <span>T = タイムアウト　交 = 選手交代（自 / 相 = どちらのチームか）</span>
+      <span>5分・10分… = セット開始からその時間を過ぎて最初の得点</span>
     </div>
   );
 }

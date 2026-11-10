@@ -34,7 +34,7 @@ export function filterMatches(
     .sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1));
 }
 
-export type CsvTable = '選手別' | 'ローテ別' | '相手得点' | '相手サーバー別' | '相手スタメン';
+export type CsvTable = '選手別' | 'ローテ別' | '相手得点' | '相手サーバー別' | '相手スタメン' | 'セット時間';
 
 /** volley_<種類>_<日付YYYYMMDD>.csv（種類 = 出力する表） */
 export function csvFileName(table: CsvTable, now: Date): string {

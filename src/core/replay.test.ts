@@ -202,4 +202,16 @@ describe('replay', () => {
     expect(st.rallies[2].themRotation).toBe(6);
     expect(st.rallies[2].scoreBefore).toEqual({ us: 1, them: 1 });
   });
+  it('同じセットで3回目のタイムアウトは記録したうえで警告（2回までは警告なし）', () => {
+    const to = (seq: number, side: Side, set = 1) => ev(seq, { t: 'timeout', set, side });
+    const two = [start(1, 'us'), to(2, 'us'), to(3, 'them'), to(4, 'us')];
+    expect(replay(cfg, two).warnings).toEqual([]);
+    const three = [...two, to(5, 'us')];
+    const st = replay(cfg, three);
+    expect(st.current!.timeouts).toEqual({ us: 3, them: 1 });
+    expect(st.warnings).toContain('自チーム: 3回目のタイムアウトです（ルールでは2回まで）');
+    // 次のセットでは数え直す
+    const next = [...three, ...to25_23(6), start(100, 'them', 2), to(101, 'us', 2)];
+    expect(replay(cfg, next).warnings).toEqual([]);
+  });
 });

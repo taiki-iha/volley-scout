@@ -25,6 +25,7 @@ function warningsFor(s: SetState): string[] {
   const w: string[] = [];
   for (const side of ['us', 'them'] as Side[]) {
     if (s.subsUsed[side] >= 7) w.push(`${LABEL[side]}の交代が6回を超えています`);
+    if (s.timeouts[side] >= 3) w.push(`${LABEL[side]}: ${s.timeouts[side]}回目のタイムアウトです（ルールでは2回まで）`);
   }
   for (const no of s.liberos.us) {
     if (isFrontRow(s.lineups.us, no)) w.push(`リベロ #${no} が前衛にいます`);

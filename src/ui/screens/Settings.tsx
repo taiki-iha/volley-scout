@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'preact/hooks';
-import { DEFAULT_THRESHOLDS } from '../../core/condition';
 import { changeCodes } from '../../data/auth';
 import { useStore, useWatch } from '../../data/StoreContext';
-import type { Settings as SettingsData } from '../../data/store';
+import { DEFAULT_SETTINGS, type Settings as SettingsData } from '../../data/store';
 import { report } from '../notify';
-import { parseThresholds, toPercent } from '../validate';
+import { parseThresholds, parseTimeoutSec, toPercent } from '../validate';
 
 export function Settings({ teamId }: { teamId: string | null }) {
   const store = useStore();
   const settings = useWatch<SettingsData>((cb) => store.watchSettings(cb), [store]);
-  const th = settings?.thresholds ?? DEFAULT_THRESHOLDS;
+  const cur = settings ?? DEFAULT_SETTINGS;
+  const th = cur.thresholds;
   const [minSpikes, setMinSpikes] = useState(String(th.minSpikes));
   const [pct, setPct] = useState(String(toPercent(th.maxKillRate)));
   const [serveErr, setServeErr] = useState(String(th.maxServeErrorsPerSet));
+  const [toSec, setToSec] = useState(String(cur.timeoutSec));
+  const [toSound, setToSound] = useState(cur.timeoutSound);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
@@ -24,14 +26,18 @@ export function Settings({ teamId }: { teamId: string | null }) {
       setMinSpikes(String(settings.thresholds.minSpikes));
       setPct(String(toPercent(settings.thresholds.maxKillRate)));
       setServeErr(String(settings.thresholds.maxServeErrorsPerSet));
+      setToSec(String(settings.timeoutSec));
+      setToSound(settings.timeoutSound);
     }
   }, [settings]);
 
   async function save() {
     const r = parseThresholds({ minSpikes, maxKillRatePct: pct, maxServeErrorsPerSet: serveErr });
     if (!r.ok) { setError(r.error); setSaved(false); return; }
+    const sec = parseTimeoutSec(toSec);
+    if (!sec.ok) { setError(sec.error); setSaved(false); return; }
     setError('');
-    setSaved(await report(store.saveSettings({ thresholds: r.value })));
+    setSaved(await report(store.saveSettings({ thresholds: r.value, timeoutSec: sec.value, timeoutSound: toSound })));
   }
 
   return (
@@ -47,6 +53,16 @@ export function Settings({ teamId }: { teamId: string | null }) {
         </label>
         <label class="field">1セットのサーブミスがこの数以上（本）
           <input inputMode="numeric" value={serveErr} onInput={(e) => { setServeErr(e.currentTarget.value); setSaved(false); }} />
+        </label>
+      </section>
+      <section class="card">
+        <h2>タイムアウト</h2>
+        <label class="field">タイムアウトの長さ（秒・10〜120。6人制は30秒）
+          <input inputMode="numeric" value={toSec} onInput={(e) => { setToSec(e.currentTarget.value); setSaved(false); }} />
+        </label>
+        <label class="check-field">
+          <input type="checkbox" checked={toSound} onChange={(e) => { setToSound(e.currentTarget.checked); setSaved(false); }} />
+          タイムアウト終了を音で知らせる
         </label>
         {error && <p class="error" role="alert">{error}</p>}
         {saved && <p class="ok">保存しました</p>}

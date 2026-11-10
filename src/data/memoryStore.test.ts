@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createMemoryStore } from './memoryStore';
+import { DEFAULT_SETTINGS, normalizeSettings } from './store';
 import { DEFAULT_THRESHOLDS } from '../core/condition';
 import type { MatchEvent } from '../core/types';
 
@@ -57,7 +58,7 @@ describe('memoryStore', () => {
     const id = await a.createMatch(matchInput);
     await a.appendEvent(id, rally('spike_kill'));
     await a.saveReception(id, { rallyId: '0000000001', receiver: 7, grade: 'A' });
-    await a.saveSettings({ thresholds: { ...DEFAULT_THRESHOLDS, minSpikes: 9 } });
+    await a.saveSettings({ ...DEFAULT_SETTINGS, thresholds: { ...DEFAULT_THRESHOLDS, minSpikes: 9 }, timeoutSec: 45, timeoutSound: false });
     const b = createMemoryStore(st);
     let players: unknown[] = [], events: MatchEvent[] = [], recs: unknown[] = [], matches: unknown[] = [];
     let settings: any;
@@ -71,15 +72,26 @@ describe('memoryStore', () => {
     expect(events).toHaveLength(1);
     expect(recs).toHaveLength(1);
     expect(settings.thresholds.minSpikes).toBe(9);
+    expect(settings.timeoutSec).toBe(45);
+    expect(settings.timeoutSound).toBe(false);
     expect(b.role()).toBe('admin');
     expect(b.mode).toBe('local');
   });
 
-  it('設定の既定値は DEFAULT_THRESHOLDS', () => {
+  it('設定の既定値は DEFAULT_THRESHOLDS・タイムアウト30秒・音あり', () => {
     const s = createMemoryStore();
     let settings: any;
     s.watchSettings((x) => { settings = x; });
-    expect(settings).toEqual({ thresholds: DEFAULT_THRESHOLDS });
+    expect(settings).toEqual({ thresholds: DEFAULT_THRESHOLDS, timeoutSec: 30, timeoutSound: true });
+  });
+
+  it('タイムアウト設定のない古い保存データも、既定値を補って読める', () => {
+    const st = fakeStorage();
+    st.setItem('volley-scout:v1', JSON.stringify({ settings: { thresholds: { minSpikes: 8, maxKillRate: 0.25, maxServeErrorsPerSet: 3 } } }));
+    const s = createMemoryStore(st);
+    let settings: any;
+    s.watchSettings((x) => { settings = x; });
+    expect(settings).toEqual({ thresholds: { minSpikes: 8, maxKillRate: 0.25, maxServeErrorsPerSet: 3 }, timeoutSec: 30, timeoutSound: true });
   });
 
   it('別 store の書き込みを _reloadFromStorage で取り込み、watcher に再通知', async () => {
@@ -140,5 +152,24 @@ describe('memoryStore', () => {
     let names: string[] = [];
     s.watchOpponents((o) => { names = o.map((x) => x.name); });
     expect(names).toEqual(['A中', 'あおば', '西高']);
+  });
+});
+
+describe('normalizeSettings', () => {
+  it('null・壊れた値は既定値', () => {
+    expect(normalizeSettings(null)).toEqual(DEFAULT_SETTINGS);
+    expect(normalizeSettings('x')).toEqual(DEFAULT_SETTINGS);
+    expect(normalizeSettings({ thresholds: { minSpikes: 'a' } })).toEqual(DEFAULT_SETTINGS);
+  });
+  it('範囲外・整数でないタイムアウト秒は既定の30秒', () => {
+    expect(normalizeSettings({ timeoutSec: 5 }).timeoutSec).toBe(30);
+    expect(normalizeSettings({ timeoutSec: 121 }).timeoutSec).toBe(30);
+    expect(normalizeSettings({ timeoutSec: 30.5 }).timeoutSec).toBe(30);
+    expect(normalizeSettings({ timeoutSec: 10 }).timeoutSec).toBe(10);
+    expect(normalizeSettings({ timeoutSec: 120 }).timeoutSec).toBe(120);
+  });
+  it('音の設定は boolean のときだけ使う', () => {
+    expect(normalizeSettings({ timeoutSound: false }).timeoutSound).toBe(false);
+    expect(normalizeSettings({ timeoutSound: 'no' }).timeoutSound).toBe(true);
   });
 });

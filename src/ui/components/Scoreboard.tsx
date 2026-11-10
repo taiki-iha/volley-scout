@@ -1,10 +1,12 @@
+import type { ComponentChildren } from 'preact';
 import type { SetState } from '../../core/replay';
 import type { Side } from '../../core/types';
 import { rotationLabel } from '../live.logic';
 
-interface Props { cur: SetState; setsWon: Record<Side, number>; opponentName: string }
+/** clock = 経過時間（下の段の中央に出す。毎秒更新するので別の部品にしてある） */
+interface Props { cur: SetState; setsWon: Record<Side, number>; opponentName: string; clock?: ComponentChildren }
 
-export function Scoreboard({ cur, setsWon, opponentName }: Props) {
+export function Scoreboard({ cur, setsWon, opponentName, clock }: Props) {
   const serveMark = (s: Side) => (cur.serving === s ? <span class="serve-dot" title="サーブ権">●</span> : null);
   return (
     <div class="scoreboard">
@@ -28,6 +30,7 @@ export function Scoreboard({ cur, setsWon, opponentName }: Props) {
       </div>
       <div class="sb-sub">
         <span>交代 {cur.subsUsed.them}/6・TO {cur.timeouts.them}</span>
+        {clock}
         <span>交代 {cur.subsUsed.us}/6・TO {cur.timeouts.us}</span>
       </div>
     </div>

@@ -4,10 +4,9 @@ import {
   collection, deleteDoc, doc, getDoc, getDocFromCache, getDocs, getDocsFromCache, initializeFirestore,
   onSnapshot, orderBy, persistentLocalCache, persistentMultipleTabManager, query, setDoc, writeBatch,
 } from 'firebase/firestore';
-import { DEFAULT_THRESHOLDS } from '../core/condition';
 import type { Match, MatchEvent, OpponentTeam, Player, Reception } from '../core/types';
 import { applyEventPatch, buildNextEvent, cloudEventId, lastEvent, randomSuffix, sortEvents, sortOpponents } from './eventPatch';
-import type { Settings, Store, Unsub } from './store';
+import { normalizeSettings, type Store, type Unsub } from './store';
 
 const dbs = new WeakMap<FirebaseApp, Firestore>();
 
@@ -180,7 +179,7 @@ export function createFirestoreStore(
     watchSettings(cb) {
       return onSnapshot(
         ref('settings', 'main'),
-        (snap) => cb(snap.exists() ? (snap.data() as Settings) : { thresholds: DEFAULT_THRESHOLDS }),
+        (snap) => cb(normalizeSettings(snap.exists() ? snap.data() : null)),
         onError,
       );
     },

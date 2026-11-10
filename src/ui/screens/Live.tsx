@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { DEFAULT_THRESHOLDS } from '../../core/condition';
 import { replay } from '../../core/replay';
 import type { LandPoint, Match, MatchEvent, OpponentTeam, Player, Side } from '../../core/types';
-import type { Settings } from '../../data/store';
+import { DEFAULT_SETTINGS, type Settings } from '../../data/store';
 import { useStore, useWatch } from '../../data/StoreContext';
 import { ConditionList } from '../components/ConditionList';
 import { Court } from '../components/Court';
+import { AudioUnlock, MatchClock, TimeoutOverlay } from '../components/MatchTimers';
 import { PlayPanel } from '../components/PlayPanel';
 import { ScoreFlow, ScoreFlowLegend } from '../components/ScoreFlow';
 import { Scoreboard } from '../components/Scoreboard';
@@ -16,6 +16,7 @@ import {
 } from '../live.logic';
 import { report } from '../notify';
 import { scoreFlow } from '../scoreFlow.logic';
+import { unlockAudio } from '../sound';
 import { navigate } from '../router';
 import { SetStart } from './SetStart';
 
@@ -51,7 +52,8 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
 
   const team = opponents.find((o) => o.id === match.opponentId);
   const oppName = team?.name ?? '相手';
-  const thresholds = settings?.thresholds ?? DEFAULT_THRESHOLDS;
+  const conf = settings ?? DEFAULT_SETTINGS;
+  const thresholds = conf.thresholds;
   const cur = state.current;
   const newSetNo = nextSetNo(state);
 
@@ -127,7 +129,9 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
   return (
     <div class={`live${readonly ? ' readonly' : ''}`}>
       <div class="live-top">
-        <Scoreboard cur={cur} setsWon={state.setsWon} opponentName={oppName} />
+        <Scoreboard cur={cur} setsWon={state.setsWon} opponentName={oppName}
+          clock={<MatchClock flows={flows} matchOver={state.matchOver} />} />
+        <AudioUnlock hint={readonly && conf.timeoutSound} />
         {!readonly && (
           <button class={`flow-toggle${flowOpen ? ' on' : ''}`} aria-pressed={flowOpen} onClick={() => setFlowOpen((o) => !o)}>得点経過</button>
         )}
@@ -143,6 +147,8 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
             <Court side="us" set={cur.set} rotations={cur.rotations.us} lineup={cur.lineups.us} serving={cur.serving === 'us'} setter={cur.setters.us}
               liberos={cur.liberos.us} roleOf={roleOf('us')} bad={bad} selected={sel}
               onTap={readonly ? undefined : tap('us')} onLand={landOn('us')} />
+            {/* タイムアウトのカウントダウンはコートの上だけに重ね、右側の入力ボタンは隠さない */}
+            <TimeoutOverlay events={events} durationSec={conf.timeoutSec} sound={conf.timeoutSound} />
           </div>
           {state.warnings.length > 0 && (
             <div class="warnings" role="status">{state.warnings.map((w) => <div key={w}>⚠ {w}</div>)}</div>
@@ -181,8 +187,8 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
               onCancel={() => setStep(IDLE)} />
             <div class="controls">
               <button disabled={cur.over} onClick={() => setSubOpen(true)}>選手交代</button>
-              <button disabled={cur.over} onClick={() => report(store.appendEvent(id, buildTimeoutEvent(cur.set, 'us')))}>TO 自チーム</button>
-              <button disabled={cur.over} onClick={() => report(store.appendEvent(id, buildTimeoutEvent(cur.set, 'them')))}>TO 相手</button>
+              <button disabled={cur.over} onClick={() => { unlockAudio(); report(store.appendEvent(id, buildTimeoutEvent(cur.set, 'us'))); }}>TO 自チーム</button>
+              <button disabled={cur.over} onClick={() => { unlockAudio(); report(store.appendEvent(id, buildTimeoutEvent(cur.set, 'them'))); }}>TO 相手</button>
               <button class="undo" disabled={events.length === 0} onClick={() => { setStep(IDLE); report(store.undoLast(id)); }}>1つ戻す</button>
             </div>
           </div>

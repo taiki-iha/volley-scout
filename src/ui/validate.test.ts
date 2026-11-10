@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fromPercent, parseThresholds, toPercent, validateOpponentPlayer, validatePlayer } from './validate';
+import { fromPercent, parseThresholds, parseTimeoutSec, toPercent, validateOpponentPlayer, validatePlayer } from './validate';
 
 const roster = [{ no: 7, name: 'A', position: 'S' as const }];
 
@@ -43,5 +43,14 @@ describe('thresholds', () => {
     expect(parseThresholds({ minSpikes: '5', maxKillRatePct: '101', maxServeErrorsPerSet: '2' }).ok).toBe(false);
     expect(parseThresholds({ minSpikes: '5', maxKillRatePct: '-1', maxServeErrorsPerSet: '2' }).ok).toBe(false);
     expect(parseThresholds({ minSpikes: '5', maxKillRatePct: '30', maxServeErrorsPerSet: '1.5' }).ok).toBe(false);
+  });
+});
+
+describe('parseTimeoutSec', () => {
+  it('10〜120 の整数だけ通す', () => {
+    expect(parseTimeoutSec('30')).toEqual({ ok: true, value: 30 });
+    expect(parseTimeoutSec(' 10 ')).toEqual({ ok: true, value: 10 });
+    expect(parseTimeoutSec('120')).toEqual({ ok: true, value: 120 });
+    for (const bad of ['9', '121', '', '30.5', '-30', 'abc', '1e2']) expect(parseTimeoutSec(bad).ok).toBe(false);
   });
 });

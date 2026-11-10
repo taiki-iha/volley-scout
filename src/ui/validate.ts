@@ -54,3 +54,11 @@ export function parseThresholds(input: { minSpikes: string; maxKillRatePct: stri
   if (!(maxServeErrorsPerSet >= 1)) return { ok: false, error: 'サーブミス数は1以上の整数にしてください' };
   return { ok: true, value: { minSpikes, maxKillRate: fromPercent(pct), maxServeErrorsPerSet } };
 }
+
+/** タイムアウトの長さ（秒）の入力。10〜120 の整数 */
+export function parseTimeoutSec(raw: string): Result<number> {
+  const t = raw.trim();
+  const n = /^\d{1,4}$/.test(t) ? Number(t) : NaN;
+  if (!(n >= 10 && n <= 120)) return { ok: false, error: 'タイムアウトの長さは10〜120の整数（秒）にしてください' };
+  return { ok: true, value: n };
+}
