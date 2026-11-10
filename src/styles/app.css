@@ -257,3 +257,14 @@ html, body { overflow-x: hidden; }
 .drag-ghost { position: fixed; z-index: 50; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: var(--navy); color: #fff;
   display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; pointer-events: none;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35); opacity: 0.92; }
+
+/* ---------- ローテの動き（Court） ---------- */
+.rot-glow { position: absolute; inset: -3px; border-radius: 6px; pointer-events: none; z-index: 2;
+  box-shadow: 0 0 0 4px #f4d35e, 0 0 24px 6px rgba(244, 211, 94, 0.9); animation: rot-glow 1s ease-out forwards; }
+@keyframes rot-glow { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+.rot-badge { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none;
+  background: var(--navy); color: #f4d35e; font-size: 12px; font-weight: 800; border-radius: 6px; padding: 1px 8px; white-space: nowrap;
+  animation: rot-badge 1s ease-out forwards; }
+@keyframes rot-badge { 0% { opacity: 0; } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+.pl.entered { animation: pl-entered 1.2s ease-out; }
+@keyframes pl-entered { 0%, 40% { box-shadow: 0 0 0 5px #2ecc71, 0 0 14px 4px rgba(46, 204, 113, 0.8); } 100% { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); } }

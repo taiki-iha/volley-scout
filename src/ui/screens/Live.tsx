@@ -122,11 +122,11 @@ export function Live({ id, readonly }: { id: string; readonly: boolean }) {
       <div class="live-main">
         <div class="live-left">
           <div class="courts">
-            <Court side="them" lineup={cur.lineups.them} serving={cur.serving === 'them'} setter={cur.setters.them}
+            <Court side="them" set={cur.set} rotations={cur.rotations.them} lineup={cur.lineups.them} serving={cur.serving === 'them'} setter={cur.setters.them}
               liberos={cur.liberos.them} roleOf={roleOf('them')} bad={new Set()} selected={sel}
               onTap={readonly ? undefined : tap('them')} />
             <div class="net" />
-            <Court side="us" lineup={cur.lineups.us} serving={cur.serving === 'us'} setter={cur.setters.us}
+            <Court side="us" set={cur.set} rotations={cur.rotations.us} lineup={cur.lineups.us} serving={cur.serving === 'us'} setter={cur.setters.us}
               liberos={cur.liberos.us} roleOf={roleOf('us')} bad={bad} selected={sel}
               onTap={readonly ? undefined : tap('us')} />
           </div>

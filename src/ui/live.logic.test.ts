@@ -5,7 +5,7 @@ import type { Lineup, MatchConfig, MatchEvent, Side } from '../core/types';
 import type { NewEvent } from '../data/store';
 import {
   IDLE, assignSlot, availablePlays, backRow, showBlockHint, benchOf, blockerCandidates, buildAttemptEvent, buildMatchConfig, buildRallyEvent, canStartSet,
-  chooseBlocker, choosePlay, chooseZone, conditionRows, dropPlayer, initialDraft, liberoReplaced, needsZone, nextEmptySlot, nextSetNeeded,
+  chooseBlocker, choosePlay, chooseZone, conditionRows, courtChange, dropPlayer, initialDraft, liberoReplaced, needsZone, nextEmptySlot, nextSetNeeded,
   nextSetNo, rotationLabel, subOutCandidates, toggleLibero, validateSetStart, withOpponentNo, type SetStartDraft, type Step,
 } from './live.logic';
 
@@ -328,5 +328,27 @@ describe('buildMatchConfig', () => {
       .toEqual({ ok: true, value: { format: 'fixed', sets: 4, points: 21, finalSetPoints: 21 } });
     expect(buildMatchConfig({ format: 'fixed', fixedSets: '0', points: '25', finalSetPoints: '' }).ok).toBe(false);
     expect(buildMatchConfig({ format: 'bo3', fixedSets: '', points: 'x', finalSetPoints: '15' }).ok).toBe(false);
+  });
+});
+
+describe('courtChange（コートの動き）', () => {
+  const snap = (lineup: Lineup, rotations: number, set = 1) => ({ set, lineup, rotations });
+  it('最初の表示・セットが変わったときは何も出さない', () => {
+    expect(courtChange(null, snap(US, 0))).toEqual({ rotated: null, entered: [] });
+    expect(courtChange(snap(US, 3, 1), snap([7, 8, 9, 10, 11, 12], 0, 2))).toEqual({ rotated: null, entered: [] });
+  });
+  it('ローテが進む・1つ戻すで戻る', () => {
+    const rotated: Lineup = [2, 3, 4, 5, 6, 1];
+    expect(courtChange(snap(US, 0), snap(rotated, 1))).toEqual({ rotated: 'forward', entered: [] });
+    expect(courtChange(snap(rotated, 1), snap(US, 0))).toEqual({ rotated: 'back', entered: [] });
+  });
+  it('交代・リベロで入った選手（戻すと元の選手が入る）', () => {
+    const subbed: Lineup = [1, 2, 3, 4, 9, 6];
+    expect(courtChange(snap(US, 2), snap(subbed, 2))).toEqual({ rotated: null, entered: [9] });
+    expect(courtChange(snap(subbed, 2), snap(US, 2))).toEqual({ rotated: null, entered: [5] });
+    expect(courtChange(snap(US, 2), snap(US, 2))).toEqual({ rotated: null, entered: [] });
+  });
+  it('閲覧モードでまとめて届いた変化（ローテ＋交代）', () => {
+    expect(courtChange(snap(US, 0), snap([2, 3, 4, 5, 9, 1], 1))).toEqual({ rotated: 'forward', entered: [9] });
   });
 });

@@ -345,6 +345,21 @@ export function rotationLabel(side: Side, lineup: Lineup, setter: number | null,
   return side === 'them' ? `R${(rotations % 6) + 1}` : 'S?';
 }
 
+/** コート表示の1時点（セット番号・並び・そのセットのローテ回数） */
+export interface CourtSnap { set: number; lineup: Lineup; rotations: number }
+/** 前の表示からの変化。rotated: ローテが進んだ（forward）／1つ戻すで戻った（back）。entered: 新しくコートに入った選手 */
+export interface CourtChange { rotated: 'forward' | 'back' | null; entered: number[] }
+
+/**
+ * コートの動き（ローテのアニメーション・交代で入った選手の強調）を出すための変化の判定。
+ * 最初の表示やセットが変わったときは何も出さない。閲覧モードで複数のイベントがまとめて届いても、差分だけを見る。
+ */
+export function courtChange(prev: CourtSnap | null, next: CourtSnap): CourtChange {
+  if (!prev || prev.set !== next.set) return { rotated: null, entered: [] };
+  const rotated = next.rotations > prev.rotations ? 'forward' : next.rotations < prev.rotations ? 'back' : null;
+  return { rotated, entered: next.lineup.filter((no) => !prev.lineup.includes(no)) };
+}
+
 export interface ConditionRow { no: number; kills: number; attempts: number; serveErrorsSet: number; bad: boolean; onCourt: boolean }
 
 /** 自チームの調子一覧。コート上の選手と、この試合で記録のある選手を背番号順に */
