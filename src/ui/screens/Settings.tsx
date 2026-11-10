@@ -64,10 +64,11 @@ export function Settings({ teamId }: { teamId: string | null }) {
           <input type="checkbox" checked={toSound} onChange={(e) => { setToSound(e.currentTarget.checked); setSaved(false); }} />
           タイムアウト終了を音で知らせる
         </label>
-        {error && <p class="error" role="alert">{error}</p>}
-        {saved && <p class="ok">保存しました</p>}
-        <button class="primary" onClick={save}>保存</button>
       </section>
+      {/* 1つのボタンで上の2つのカードをまとめて保存する */}
+      {error && <p class="error" role="alert">{error}</p>}
+      {saved && <p class="ok">保存しました</p>}
+      <button class="primary" onClick={save}>設定をすべて保存</button>
       {store.mode === 'cloud' && store.role() === 'admin' && teamId && <ChangeCodes teamId={teamId} />}
     </div>
   );

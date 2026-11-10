@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { Lineup, MatchConfig, MatchEvent, Side } from '../core/types';
 import { scoreFlow } from './scoreFlow.logic';
 import {
-  formatCountdown, formatElapsed, formatTimeOfDay, liveClock, matchSpanMs, setDurationMs, setTimeRows, timeoutCountdown,
+  activeTimeout, countdownAt, formatCountdown, formatElapsed, formatTimeOfDay, liveClock, matchSpanMs, setDurationMs, setTimeRows,
+  shouldAlertEnd, timeoutCountdown,
 } from './timing.logic';
 
 const cfg: MatchConfig = { format: 'bestOf', sets: 3, points: 25, finalSetPoints: 15 };
@@ -22,6 +23,7 @@ const rally = (at: number, pointTo: Side, set = 1): MatchEvent => ({
 });
 const timeout = (at: number, side: Side, set = 1): MatchEvent => ({ ...base(set, at), t: 'timeout', side });
 const sub = (at: number, side: Side, set = 1): MatchEvent => ({ ...base(set, at), t: 'sub', side, out: 3, in: 7 });
+const attempt = (at: number, set = 1): MatchEvent => ({ ...base(set, at), t: 'attempt', side: 'us', player: 4, zone: null });
 /** 25-0 のセット。開始 at0、1点ごとに step ミリ秒 */
 const set25 = (at0: number, step: number, set = 1): MatchEvent[] =>
   [start(at0, set), ...Array.from({ length: 25 }, (_, i) => rally(at0 + (i + 1) * step, 'us', set))];
@@ -194,5 +196,40 @@ describe('timeoutCountdown', () => {
   });
   it('時計のずれで now が記録より前なら満タン', () => {
     expect(timeoutCountdown(evs(), at - 3000, 30)).toMatchObject({ remainingSec: 30 });
+  });
+  it('スパイク（継続）の記録でもプレー再開とみなして消える', () => {
+    expect(timeoutCountdown([...evs(), attempt(at + 5 * S)], at + 6 * S, 30)).toBeNull();
+  });
+});
+
+describe('activeTimeout / countdownAt / shouldAlertEnd', () => {
+  const at = T0 + MIN;
+  const e = () => [start(T0), timeout(at, 'us')];
+
+  it('activeTimeout は時刻によらない対象、countdownAt が時刻で表示を決める', () => {
+    const a = activeTimeout(e());
+    expect(a).toMatchObject({ side: 'us', nth: 1, at });
+    expect(countdownAt(a, at + 21 * S, 30)).toMatchObject({ phase: 'running', remainingSec: 9, warn: true });
+    expect(countdownAt(a, at + 30 * S, 30)).toMatchObject({ phase: 'ended' });
+    expect(countdownAt(a, at + 40 * S, 30)).toBeNull();
+    expect(countdownAt(null, at, 30)).toBeNull();
+  });
+  it('running を見ていて 0 を過ぎた直後だけ鳴らす', () => {
+    const a = activeTimeout(e())!;
+    const running = { id: a.id, phase: 'running' as const };
+    expect(shouldAlertEnd(running, a, at + 30 * S, 30)).toBe(true);
+    expect(shouldAlertEnd(running, a, at + 35 * S, 30)).toBe(true);
+    expect(shouldAlertEnd(running, a, at + 29 * S, 30)).toBe(false);   // まだ 0 になっていない
+  });
+  it('5秒より遅れて気づいた（裏のタブ等）ときは鳴らさない', () => {
+    const a = activeTimeout(e())!;
+    expect(shouldAlertEnd({ id: a.id, phase: 'running' }, a, at + 35 * S + 1, 30)).toBe(false);
+  });
+  it('前回を見ていない（再読み込み直後）・別のタイムアウト・既に ended・対象なしでは鳴らさない', () => {
+    const a = activeTimeout(e())!;
+    expect(shouldAlertEnd(null, a, at + 30 * S, 30)).toBe(false);
+    expect(shouldAlertEnd({ id: 'other', phase: 'running' }, a, at + 30 * S, 30)).toBe(false);
+    expect(shouldAlertEnd({ id: a.id, phase: 'ended' }, a, at + 31 * S, 30)).toBe(false);
+    expect(shouldAlertEnd({ id: a.id, phase: 'running' }, null, at + 30 * S, 30)).toBe(false);
   });
 });

@@ -9,3 +9,13 @@ export function useNow(intervalMs = 1000): number {
   }, [intervalMs]);
   return now;
 }
+
+/** intervalMs ごとに再描画だけ起こす。null の間は止める（時刻は描画時に Date.now() で読む） */
+export function useTicker(intervalMs: number | null): void {
+  const [, setN] = useState(0);
+  useEffect(() => {
+    if (intervalMs === null) return;
+    const id = setInterval(() => setN((n) => n + 1), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+}

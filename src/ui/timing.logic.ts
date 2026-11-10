@@ -104,20 +104,25 @@ export interface TimeoutCountdown {
   warn: boolean;         // 残り TIMEOUT_WARN_SEC 秒以下
 }
 
+/** 0 になってからこの時間より遅れて気づいた（裏のタブで更新が止まっていた等）ときは音を鳴らさない */
+export const TIMEOUT_ALERT_MAX_LATE_MS = 5000;
+
+/** カウントダウンの対象になっているタイムアウト（時刻に依存しない部分） */
+export interface ActiveTimeout { id: string; side: Side; nth: number; at: number }
+
 /**
- * いま出すタイムアウトのカウントダウン。最後に記録したタイムアウトだけが対象
- * （両チームのタイムアウトが重なったら新しい方）。その後にラリーかセット開始が記録されたら出さない。
- * 1つ戻すでタイムアウトのイベントが消えれば、そのカウントダウンも消える（イベントから毎回求めるため）。
- * 開始は記録時刻 at から数えるので、再読み込みや別の端末でも同じ残り時間になる。
- * 0 になってから endShowMs の間は phase = 'ended'、それを過ぎたら null。
+ * いまカウントダウンの対象になるタイムアウト。最後に記録したタイムアウトだけが対象
+ * （両チームのタイムアウトが重なったら新しい方）。その後にラリー・スパイク（継続）・セット開始が記録されたら null
+ * （プレーが再開した）。交代・リベロ入替では消えない。
+ * 1つ戻すでタイムアウトのイベントが消えれば、その対象も消える（イベントから毎回求めるため）。
+ * events の並び替えを含むので、画面ではイベントが変わったときだけ呼ぶ（時刻の計算は countdownAt）。
  */
-export function timeoutCountdown(
-  events: readonly MatchEvent[], now: number, durationSec: number, endShowMs = TIMEOUT_END_SHOW_MS,
-): TimeoutCountdown | null {
+export function activeTimeout(events: readonly MatchEvent[]): ActiveTimeout | null {
   const sorted = [...events].sort(compareEvents);
   let i = sorted.length - 1;
   while (i >= 0 && sorted[i].t !== 'timeout') {
-    if (sorted[i].t === 'rally' || sorted[i].t === 'set_start') return null;
+    const t = sorted[i].t;
+    if (t === 'rally' || t === 'attempt' || t === 'set_start') return null;
     i--;
   }
   if (i < 0) return null;
@@ -130,12 +135,43 @@ export function timeoutCountdown(
     if (e.t === 'set_start' && e.set === to.set) break;
     if (e.t === 'timeout' && e.set === to.set && e.side === to.side) nth++;
   }
+  return { id: to.id, side: to.side, nth, at: to.at };
+}
 
-  const remainingMs = durationSec * 1000 - Math.max(0, now - to.at);
+/**
+ * 対象のタイムアウトの、時刻 now での表示。記録時刻 at から数えるので、再読み込みや別の端末でも同じ残り時間になる。
+ * 0 になってから endShowMs の間は phase = 'ended'、それを過ぎたら null。
+ */
+export function countdownAt(
+  t: ActiveTimeout | null, now: number, durationSec: number, endShowMs = TIMEOUT_END_SHOW_MS,
+): TimeoutCountdown | null {
+  if (!t) return null;
+  const remainingMs = durationSec * 1000 - Math.max(0, now - t.at);
+  const base = { id: t.id, side: t.side, nth: t.nth };
   if (remainingMs > 0) {
     const remainingSec = Math.ceil(remainingMs / 1000);
-    return { id: to.id, side: to.side, nth, phase: 'running', remainingSec, warn: remainingSec <= TIMEOUT_WARN_SEC };
+    return { ...base, phase: 'running', remainingSec, warn: remainingSec <= TIMEOUT_WARN_SEC };
   }
-  if (remainingMs > -endShowMs) return { id: to.id, side: to.side, nth, phase: 'ended', remainingSec: 0, warn: false };
+  if (remainingMs > -endShowMs) return { ...base, phase: 'ended', remainingSec: 0, warn: false };
   return null;
+}
+
+/** activeTimeout + countdownAt（テスト・単発の計算用） */
+export function timeoutCountdown(
+  events: readonly MatchEvent[], now: number, durationSec: number, endShowMs = TIMEOUT_END_SHOW_MS,
+): TimeoutCountdown | null {
+  return countdownAt(activeTimeout(events), now, durationSec, endShowMs);
+}
+
+/**
+ * 終了の合図（音・振動）を出すか。前回見たときは同じタイムアウトが running で、いまは 0 を過ぎていて、
+ * 0 になってからの遅れが maxLateMs 以内のときだけ。再読み込み直後や、ずっと遅れて気づいたときは鳴らさない。
+ */
+export function shouldAlertEnd(
+  prev: { id: string; phase: 'running' | 'ended' } | null, t: ActiveTimeout | null, now: number, durationSec: number,
+  maxLateMs = TIMEOUT_ALERT_MAX_LATE_MS,
+): boolean {
+  if (!prev || !t || prev.id !== t.id || prev.phase !== 'running') return false;
+  const late = now - (t.at + durationSec * 1000);
+  return late >= 0 && late <= maxLateMs;
 }

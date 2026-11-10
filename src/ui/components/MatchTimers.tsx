@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { MatchEvent } from '../../core/types';
 import { SIDE_LABEL } from '../live.logic';
 import type { SetFlow } from '../scoreFlow.logic';
 import { isAudioUnlocked, onAudioUnlockChange, timeoutEndAlert, unlockAudio } from '../sound';
-import { TIMEOUTS_PER_SET, formatCountdown, formatElapsed, liveClock, timeoutCountdown } from '../timing.logic';
-import { useNow } from '../useNow';
+import {
+  TIMEOUTS_PER_SET, TIMEOUT_END_SHOW_MS, activeTimeout, countdownAt, formatCountdown, formatElapsed, liveClock, shouldAlertEnd,
+} from '../timing.logic';
+import { useNow, useTicker } from '../useNow';
 
 // 毎秒描き直すのはこのファイルの小さな部品だけ（入力画面全体は再描画しない）
 
@@ -29,17 +31,22 @@ interface OverlayProps { events: MatchEvent[]; durationSec: number; sound: boole
  * 次のラリー・1つ戻す・「閉じる」で消える。0 になったら「タイムアウト終了」を数秒出して消え、音と振動で知らせる。
  */
 export function TimeoutOverlay({ events, durationSec, sound }: OverlayProps) {
-  const now = useNow(250);
   const [dismissed, setDismissed] = useState<string | null>(null);
-  const cd = timeoutCountdown(events, now, durationSec);
-  // 0 になった瞬間を見つける（表示を閉じていても、タブが裏で更新が遅れても鳴らす）
-  const end = timeoutCountdown(events, now, durationSec, Infinity);
-  const prev = useRef<{ id: string; phase: string } | null>(null);
+  // 並び替えを含む部分はイベントが変わったときだけ。時刻の計算は描画ごとに軽く行う
+  const active = useMemo(() => activeTimeout(events), [events]);
+  const now = Date.now();
+  // カウントダウン中・「終了」表示中だけ速く描き直す。それ以外は止める
+  const live = active !== null && now - active.at < durationSec * 1000 + TIMEOUT_END_SHOW_MS;
+  useTicker(live ? 250 : null);
+  const cd = countdownAt(active, now, durationSec);
+
+  // 0 になった瞬間を見つけて知らせる（表示を閉じていても鳴らす。大きく遅れて気づいたときは鳴らさない）
+  const prev = useRef<{ id: string; phase: 'running' | 'ended' } | null>(null);
+  const phase = cd?.phase ?? null;
   useEffect(() => {
-    const p = prev.current;
-    if (p && end && p.id === end.id && p.phase === 'running' && end.phase === 'ended') timeoutEndAlert(sound);
-    prev.current = end ? { id: end.id, phase: end.phase } : null;
-  }, [end?.id, end?.phase]);
+    if (shouldAlertEnd(prev.current, active, Date.now(), durationSec)) timeoutEndAlert(sound);
+    prev.current = active && phase ? { id: active.id, phase } : null;
+  }, [active?.id, phase]);
 
   if (!cd || cd.id === dismissed) return null;
   const cls = cd.phase === 'ended' ? ' ended' : cd.warn ? ' warn' : '';
